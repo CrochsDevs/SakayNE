@@ -1,0 +1,537 @@
+{
+  "towns": [
+    {
+      "id": "cabanatuan",
+      "name": "Cabanatuan City",
+      "lat": 15.4868,
+      "lng": 120.9734
+    },
+    {
+      "id": "palayan",
+      "name": "Palayan City",
+      "lat": 15.5414,
+      "lng": 121.0853
+    },
+    {
+      "id": "gapan",
+      "name": "Gapan City",
+      "lat": 15.3116,
+      "lng": 120.9478
+    },
+    {
+      "id": "sanjose",
+      "name": "San Jose City",
+      "lat": 15.7895,
+      "lng": 120.9893
+    },
+    {
+      "id": "munoz",
+      "name": "Science City of Muñoz",
+      "lat": 15.7161,
+      "lng": 120.9025
+    },
+    {
+      "id": "talavera",
+      "name": "Talavera",
+      "lat": 15.5833,
+      "lng": 120.9283
+    },
+    {
+      "id": "bitas",
+      "name": "Bitas",
+      "lat": 15.5112,
+      "lng": 121.0109
+    },
+    {
+      "id": "sta_rosa",
+      "name": "Sta. Rosa",
+      "lat": 15.4224,
+      "lng": 120.9375
+    },
+    {
+      "id": "penaranda",
+      "name": "Peñaranda",
+      "lat": 15.3565,
+      "lng": 121.0007
+    },
+    {
+      "id": "baloc",
+      "name": "Baloc",
+      "lat": 15.6417,
+      "lng": 120.9572
+    },
+    {
+      "id": "licab",
+      "name": "Licab",
+      "lat": 15.55,
+      "lng": 120.8
+    },
+    {
+      "id": "sto_domingo",
+      "name": "Sto. Domingo",
+      "lat": 15.5917,
+      "lng": 120.8667
+    },
+    {
+      "id": "lupao",
+      "name": "Lupao",
+      "lat": 15.8833,
+      "lng": 120.9
+    },
+    {
+      "id": "guimba",
+      "name": "Guimba",
+      "lat": 15.6667,
+      "lng": 120.7667
+    },
+    {
+      "id": "aliaga",
+      "name": "Aliaga",
+      "lat": 15.5,
+      "lng": 120.75
+    },
+    {
+      "id": "zaragoza",
+      "name": "Zaragoza",
+      "lat": 15.5,
+      "lng": 120.7833
+    },
+    {
+      "id": "bongabon",
+      "name": "Bongabon",
+      "lat": 15.6333,
+      "lng": 121.15
+    },
+    {
+      "id": "laur",
+      "name": "Laur",
+      "lat": 15.65,
+      "lng": 121.1667
+    },
+    {
+      "id": "santacruz",
+      "name": "Sta. Cruz",
+      "lat": 15.55,
+      "lng": 121.1833
+    },
+    {
+      "id": "manila",
+      "name": "Manila",
+      "lat": 14.5995,
+      "lng": 120.9842,
+      "outside": true
+    },
+    {
+      "id": "baguio",
+      "name": "Baguio City",
+      "lat": 16.4023,
+      "lng": 120.596,
+      "outside": true
+    },
+    {
+      "id": "tuguegarao",
+      "name": "Tuguegarao",
+      "lat": 17.6132,
+      "lng": 121.727,
+      "outside": true
+    }
+  ],
+  "routes": [
+    {
+      "id": "jeep-cabanatuan-palayan",
+      "type": "jeep",
+      "label": "Cabanatuan • Palayan",
+      "originId": "cabanatuan",
+      "destinationId": "palayan",
+      "destinationLabel": "Palayan City",
+      "stops": [
+        {
+          "townId": "cabanatuan",
+          "minutes": 0
+        },
+        {
+          "townId": "bitas",
+          "minutes": 8
+        },
+        {
+          "townId": "palayan",
+          "minutes": 25
+        }
+      ]
+    },
+    {
+      "id": "jeep-cabanatuan-gapan",
+      "type": "jeep",
+      "label": "Cabanatuan • Gapan",
+      "originId": "cabanatuan",
+      "destinationId": "gapan",
+      "destinationLabel": "Gapan City",
+      "stops": [
+        {
+          "townId": "cabanatuan",
+          "minutes": 0
+        },
+        {
+          "townId": "sta_rosa",
+          "minutes": 10
+        },
+        {
+          "townId": "penaranda",
+          "minutes": 18
+        },
+        {
+          "townId": "gapan",
+          "minutes": 30
+        }
+      ]
+    },
+    {
+      "id": "jeep-cabanatuan-san-jose",
+      "type": "jeep",
+      "label": "Cabanatuan • San Jose",
+      "originId": "cabanatuan",
+      "destinationId": "sanjose",
+      "destinationLabel": "San Jose City",
+      "stops": [
+        {
+          "townId": "cabanatuan",
+          "minutes": 0
+        },
+        {
+          "townId": "talavera",
+          "minutes": 20
+        },
+        {
+          "townId": "baloc",
+          "minutes": 35
+        },
+        {
+          "townId": "munoz",
+          "minutes": 50
+        },
+        {
+          "townId": "sanjose",
+          "minutes": 70
+        }
+      ]
+    },
+    {
+      "id": "jeep-san-jose-cabanatuan",
+      "type": "jeep",
+      "label": "San Jose • Cabanatuan",
+      "originId": "sanjose",
+      "destinationId": "cabanatuan",
+      "destinationLabel": "Cabanatuan City",
+      "stops": [
+        {
+          "townId": "sanjose",
+          "minutes": 0
+        },
+        {
+          "townId": "munoz",
+          "minutes": 20
+        },
+        {
+          "townId": "baloc",
+          "minutes": 35
+        },
+        {
+          "townId": "talavera",
+          "minutes": 50
+        },
+        {
+          "townId": "cabanatuan",
+          "minutes": 70
+        }
+      ]
+    },
+    {
+      "id": "jeep-guimba-cabanatuan",
+      "type": "jeep",
+      "label": "Guimba • Cabanatuan",
+      "originId": "guimba",
+      "destinationId": "cabanatuan",
+      "destinationLabel": "Cabanatuan City",
+      "stops": [
+        {
+          "townId": "guimba",
+          "minutes": 0
+        },
+        {
+          "townId": "baloc",
+          "minutes": 22
+        },
+        {
+          "townId": "talavera",
+          "minutes": 40
+        },
+        {
+          "townId": "cabanatuan",
+          "minutes": 60
+        }
+      ]
+    },
+    {
+      "id": "bus-cabanatuan-manila",
+      "type": "bus",
+      "label": "Cabanatuan • Manila",
+      "originId": "cabanatuan",
+      "destinationId": "manila",
+      "destinationLabel": "Manila",
+      "stops": [
+        {
+          "townId": "cabanatuan",
+          "minutes": 0
+        },
+        {
+          "townId": "sta_rosa",
+          "minutes": 20
+        },
+        {
+          "townId": "gapan",
+          "minutes": 40
+        },
+        {
+          "townId": "manila",
+          "minutes": 180
+        }
+      ]
+    },
+    {
+      "id": "bus-cabanatuan-baguio",
+      "type": "bus",
+      "label": "Cabanatuan • Baguio",
+      "originId": "cabanatuan",
+      "destinationId": "baguio",
+      "destinationLabel": "Baguio City",
+      "stops": [
+        {
+          "townId": "cabanatuan",
+          "minutes": 0
+        },
+        {
+          "townId": "talavera",
+          "minutes": 20
+        },
+        {
+          "townId": "munoz",
+          "minutes": 45
+        },
+        {
+          "townId": "sanjose",
+          "minutes": 70
+        },
+        {
+          "townId": "lupao",
+          "minutes": 90
+        },
+        {
+          "townId": "baguio",
+          "minutes": 240
+        }
+      ]
+    },
+    {
+      "id": "bus-cabanatuan-tuguegarao",
+      "type": "bus",
+      "label": "Cabanatuan • Tuguegarao",
+      "originId": "cabanatuan",
+      "destinationId": "tuguegarao",
+      "destinationLabel": "Tuguegarao",
+      "stops": [
+        {
+          "townId": "cabanatuan",
+          "minutes": 0
+        },
+        {
+          "townId": "talavera",
+          "minutes": 20
+        },
+        {
+          "townId": "munoz",
+          "minutes": 45
+        },
+        {
+          "townId": "sanjose",
+          "minutes": 70
+        },
+        {
+          "townId": "lupao",
+          "minutes": 90
+        },
+        {
+          "townId": "tuguegarao",
+          "minutes": 420
+        }
+      ]
+    },
+    {
+      "id": "jeep-palayan-cabanatuan",
+      "type": "jeep",
+      "label": "Palayan City • Cabanatuan City",
+      "originId": "palayan",
+      "destinationId": "cabanatuan",
+      "destinationLabel": "Cabanatuan City",
+      "stops": [
+        {
+          "townId": "palayan",
+          "minutes": 0
+        },
+        {
+          "townId": "bitas",
+          "minutes": 17
+        },
+        {
+          "townId": "cabanatuan",
+          "minutes": 25
+        }
+      ]
+    },
+    {
+      "id": "jeep-gapan-cabanatuan",
+      "type": "jeep",
+      "label": "Gapan City • Cabanatuan City",
+      "originId": "gapan",
+      "destinationId": "cabanatuan",
+      "destinationLabel": "Cabanatuan City",
+      "stops": [
+        {
+          "townId": "gapan",
+          "minutes": 0
+        },
+        {
+          "townId": "penaranda",
+          "minutes": 12
+        },
+        {
+          "townId": "sta_rosa",
+          "minutes": 20
+        },
+        {
+          "townId": "cabanatuan",
+          "minutes": 30
+        }
+      ]
+    },
+    {
+      "id": "jeep-cabanatuan-guimba",
+      "type": "jeep",
+      "label": "Cabanatuan City • Guimba",
+      "originId": "cabanatuan",
+      "destinationId": "guimba",
+      "destinationLabel": "Guimba",
+      "stops": [
+        {
+          "townId": "cabanatuan",
+          "minutes": 0
+        },
+        {
+          "townId": "talavera",
+          "minutes": 20
+        },
+        {
+          "townId": "baloc",
+          "minutes": 38
+        },
+        {
+          "townId": "guimba",
+          "minutes": 60
+        }
+      ]
+    },
+    {
+      "id": "bus-manila-cabanatuan",
+      "type": "bus",
+      "label": "Manila • Cabanatuan City",
+      "originId": "manila",
+      "destinationId": "cabanatuan",
+      "destinationLabel": "Cabanatuan City",
+      "stops": [
+        {
+          "townId": "manila",
+          "minutes": 0
+        },
+        {
+          "townId": "gapan",
+          "minutes": 140
+        },
+        {
+          "townId": "sta_rosa",
+          "minutes": 160
+        },
+        {
+          "townId": "cabanatuan",
+          "minutes": 180
+        }
+      ]
+    },
+    {
+      "id": "bus-baguio-cabanatuan",
+      "type": "bus",
+      "label": "Baguio City • Cabanatuan City",
+      "originId": "baguio",
+      "destinationId": "cabanatuan",
+      "destinationLabel": "Cabanatuan City",
+      "stops": [
+        {
+          "townId": "baguio",
+          "minutes": 0
+        },
+        {
+          "townId": "lupao",
+          "minutes": 150
+        },
+        {
+          "townId": "sanjose",
+          "minutes": 170
+        },
+        {
+          "townId": "munoz",
+          "minutes": 195
+        },
+        {
+          "townId": "talavera",
+          "minutes": 220
+        },
+        {
+          "townId": "cabanatuan",
+          "minutes": 240
+        }
+      ]
+    },
+    {
+      "id": "bus-tuguegarao-cabanatuan",
+      "type": "bus",
+      "label": "Tuguegarao • Cabanatuan City",
+      "originId": "tuguegarao",
+      "destinationId": "cabanatuan",
+      "destinationLabel": "Cabanatuan City",
+      "stops": [
+        {
+          "townId": "tuguegarao",
+          "minutes": 0
+        },
+        {
+          "townId": "lupao",
+          "minutes": 330
+        },
+        {
+          "townId": "sanjose",
+          "minutes": 350
+        },
+        {
+          "townId": "munoz",
+          "minutes": 375
+        },
+        {
+          "townId": "talavera",
+          "minutes": 400
+        },
+        {
+          "townId": "cabanatuan",
+          "minutes": 420
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "sakayne",
+  "private": true,
+  "scripts": {
+    "client": "cd client && npm start",
+    "server": "cd server && node src/index.js",
+    "server:dev": "cd server && node --watch src/index.js",
+    "install:all": "cd client && npm install && cd ../server && npm install",
+    "lint": "cd client && npx expo lint",
+    "test": "npm --prefix server test",
+    "typecheck": "npm --prefix client run typecheck",
+    "build:web": "npm --prefix client run build:web"
+  }
+}
