@@ -66,3 +66,40 @@ test('bus signup, pending bus verification and OTP resend return coming soon wit
     assert.equal(smtp.messages.length, 0);
   } finally { await smtp.close(); }
 });
+
+test('HTTPS email supports passenger signup, resend, verification and password reset without SMTP', async t => {
+  const previous = {};
+  for (const [name, value] of Object.entries({ EMAIL_PROVIDER: 'brevo', BREVO_API_KEY: 'local-api-fixture', EMAIL_FROM: 'sender@example.test' })) {
+    previous[name] = process.env[name]; process.env[name] = value;
+  }
+  t.after(() => {
+    for (const [name, value] of Object.entries(previous)) {
+      if (value === undefined) delete process.env[name]; else process.env[name] = value;
+    }
+  });
+  const realFetch = globalThis.fetch, messages = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url === 'https://api.brevo.com/v3/smtp/email') {
+      messages.push(JSON.parse(options.body));
+      return Response.json({ messageId: `local-message-${messages.length}` }, { status: 201 });
+    }
+    assert.ok(String(url).startsWith(base), 'Only local API requests may access the network');
+    return realFetch(url, options);
+  });
+  const email = 'passenger-https-flow@example.test';
+  assert.equal((await api('/auth/signup', '', 'POST', { fullName: 'HTTPS Passenger', email, phone: '09123456789', password: 'OriginalPassword123', role: 'passenger' })).status, 200);
+  let registration = await getDB().collection('otps').findOne({ email, purpose: 'registration' });
+  assert.ok(messages[0].htmlContent.includes(registration.otp));
+  assert.equal(await getDB().collection('auth').countDocuments({ email }), 0, 'Email acceptance does not bypass verification');
+  assert.equal((await api('/otp/send', '', 'POST', { email })).status, 200);
+  registration = await getDB().collection('otps').findOne({ email, purpose: 'registration' });
+  assert.ok(messages[1].htmlContent.includes(registration.otp));
+  assert.equal((await api('/auth/verify-email', '', 'POST', { email, otp: registration.otp })).status, 200);
+  assert.equal((await api('/auth/forgot-password', '', 'POST', { email })).status, 200);
+  const reset = await getDB().collection('otps').findOne({ email, purpose: 'reset' });
+  assert.ok(messages[2].htmlContent.includes(reset.otp));
+  assert.equal((await api('/auth/reset-password', '', 'POST', { email, otp: reset.otp, newPassword: 'NewPassword123' })).status, 200);
+  assert.equal((await api('/auth/login', '', 'POST', { identifier: email, password: 'NewPassword123' })).status, 200);
+  assert.equal(messages.length, 3);
+  assert.ok(messages.every(message => message.sender.email === 'sender@example.test' && message.to[0].email === email));
+});
