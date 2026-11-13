@@ -17,9 +17,9 @@ const ICONS: Record<string, any> = {
 };
 
 const COLORS: Record<string, string> = {
-  welcome: '#3F8451',
-  booking: '#5AA06D',
-  nearby: '#2E6B3F',
+  welcome: '#087F8C',
+  booking: '#29A8AD',
+  nearby: '#06626D',
   promo: '#B8860B',
   alert: '#C0392B',
 };
@@ -33,14 +33,14 @@ export default function NotificationsListScreen() {
 
   const filtered = notifs.filter((n) => filter === 'all' ? true : filter === 'unread' ? !n.read : n.read);
 
-  useFocusEffect(useCallback(() => { void load(); }, []));
-
-  const load = async () => {
+  const load = useCallback(async () => {
     const user = await getCurrentUser();
     if (user?.email) {
       try { const data = await getNotifications(user.email); setNotifs(data); } catch(e) { showError('Unable to load notifications', e instanceof Error ? e.message : 'Retry later'); }
     }
-  };
+  }, []);
+
+  useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const onRefresh = async () => {
     setRefreshing(true);

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { TextInput, View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/src/constants/Colors';
+import { DarkColors } from '@/src/constants/Colors';
+import { useTheme } from '@/src/store/theme';
 import { scale, verticalScale, moderateScale } from '@/src/utils/responsive';
 
 interface InputProps {
@@ -29,15 +30,17 @@ export function Input({
   error,
   autoCapitalize = 'none',
   editable = true,
-  darkTheme = false,
+  darkTheme,
 }: InputProps) {
+  const theme = useTheme();
+  const Colors = darkTheme ? DarkColors : theme.colors;
   const [isFocused, setIsFocused] = useState(false);
   const [isSecure, setIsSecure] = useState(secureTextEntry);
 
-  const textColor = darkTheme ? Colors.pistachioCream : Colors.text;
-  const placeholderColor = darkTheme ? Colors.oliveMist : Colors.textTertiary;
-  const iconColor = darkTheme ? Colors.sageLeaf : Colors.textTertiary;
-  const iconColorFocused = darkTheme ? Colors.botanicalGreen : Colors.primary;
+  const textColor = Colors.text;
+  const placeholderColor = Colors.textTertiary;
+  const iconColor = Colors.textSecondary;
+  const iconColorFocused = Colors.primaryLight;
 
   return (
     <View style={{ width: '100%', marginBottom: verticalScale(16) }}>
@@ -47,9 +50,9 @@ export function Input({
         </Text>
       )}
       <View style={{
-        flexDirection: 'row', alignItems: 'center', borderRadius: scale(12),
-        paddingHorizontal: scale(16), backgroundColor: darkTheme ? 'rgba(255,255,255,0.08)' : '#F5F7F5',
-        borderWidth: 0, height: verticalScale(52),
+        flexDirection: 'row', alignItems: 'center', borderRadius: scale(16),
+        paddingHorizontal: scale(16), backgroundColor: Colors.card,
+        borderWidth: 1.5, borderColor: error ? Colors.error : isFocused ? Colors.borderFocused : Colors.border, minHeight: 52, height: verticalScale(54),
       }}>
         {icon && (
           <Ionicons

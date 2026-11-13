@@ -37,7 +37,7 @@ export function verifyEmailTemplate({ otp }) {
 <body style="margin:0;padding:32px 16px;background:#f5f5f5">
   <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
     <div style="background:#0D1F16;padding:32px;text-align:center">
-      <img src="${logo}" alt="SakayNE" style="width:56px;height:56px" />
+      <img src="${logo}" alt="Sakay" style="width:56px;height:56px" />
     </div>
     <div style="padding:32px 28px">
       <h2 style="font-size:22px;font-weight:800;color:#0D1F16;margin:0 0 8px;text-align:center">Verify your email</h2>
@@ -49,7 +49,7 @@ export function verifyEmailTemplate({ otp }) {
       <p style="font-size:13px;color:#9CA3AF;text-align:center;margin:0">Expires in <strong style="color:#3F8451">5 minutes</strong></p>
     </div>
     <div style="background:#F9FAFB;padding:20px;text-align:center;border-top:1px solid #E5E7EB">
-      <p style="font-size:11px;color:#9CA3AF;margin:0">&copy; ${new Date().getFullYear()} SakayNE</p>
+      <p style="font-size:11px;color:#9CA3AF;margin:0">&copy; ${new Date().getFullYear()} Sakay</p>
     </div>
   </div>
 </body></html>`;
@@ -62,7 +62,7 @@ export function otpTemplate({ otp }) {
 <body style="margin:0;padding:32px 16px;background:#f5f5f5">
   <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
     <div style="background:#0D1F16;padding:32px;text-align:center">
-      <img src="${logo}" alt="SakayNE" style="width:56px;height:56px" />
+      <img src="${logo}" alt="Sakay" style="width:56px;height:56px" />
     </div>
     <div style="padding:32px 28px">
       <h2 style="font-size:22px;font-weight:800;color:#0D1F16;margin:0 0 8px;text-align:center">Your OTP Code</h2>
@@ -74,7 +74,7 @@ export function otpTemplate({ otp }) {
       <p style="font-size:13px;color:#9CA3AF;text-align:center;margin:0">Expires in <strong style="color:#3F8451">5 minutes</strong></p>
     </div>
     <div style="background:#F9FAFB;padding:20px;text-align:center;border-top:1px solid #E5E7EB">
-      <p style="font-size:11px;color:#9CA3AF;margin:0">&copy; ${new Date().getFullYear()} SakayNE</p>
+      <p style="font-size:11px;color:#9CA3AF;margin:0">&copy; ${new Date().getFullYear()} Sakay</p>
     </div>
   </div>
 </body></html>`;

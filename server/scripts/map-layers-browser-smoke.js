@@ -1,0 +1,104 @@
+import assert from 'node:assert/strict';
+import { existsSync, mkdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import express from 'express';
+import { chromium, expect } from '@playwright/test';
+
+const dist = fileURLToPath(new URL('../../client/dist', import.meta.url));
+const artifacts = fileURLToPath(new URL('../../artifacts', import.meta.url));
+mkdirSync(artifacts, { recursive: true });
+const app = express(); app.use(express.static(dist, { extensions: ['html'] }));
+const server = app.listen(0, '127.0.0.1');
+await new Promise(resolve => server.once('listening', resolve));
+const edge = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
+const browser = await chromium.launch({ ...(existsSync(edge) ? { executablePath: edge } : {}), headless: true, args: ['--enable-unsafe-swiftshader'] });
+try {
+  const user = { id: 'driver-fixture', role: 'driver', fullName: 'Angelo Castro', verified: true, approvalStatus: 'approved' };
+  const driver = { ...user, vehicleType: 'jeepney', plateNo: 'ABC 123', routeId: 'jeep-san-jose-cabanatuan', capacity: 16, isAvailable: true, availableSeats: 16, location: { latitude: 15.7161, longitude: 120.9025, accuracy: 8, updatedAt: new Date().toISOString() } };
+  const context = await browser.newContext({ viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true, reducedMotion: 'reduce', permissions: ['geolocation'], geolocation: driver.location });
+  await context.addInitScript(user => {
+    if (window.top !== window) return;
+    localStorage.setItem('@sakayne_auth', JSON.stringify(user)); localStorage.setItem('@sakayne_token', 'fixture');
+    localStorage.setItem('@sakayne_theme', 'light'); localStorage.setItem('@sakayne_language', 'en');
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) { if (window.failStyleSave && key === '@sakayne_map_style') throw new Error('Test storage failure'); return original.call(this, key, value); };
+  }, user);
+  let routeCalls = 0, failStyle = false;
+  await context.route('**/api/**', async request => {
+    const url = new URL(request.request().url()); let result = {};
+    if (url.pathname.endsWith('/auth/me')) result = { user };
+    else if (url.pathname.endsWith('/drivers/me')) result = { driver };
+    else if (url.pathname.endsWith('/rides')) result = { rides: [] };
+    else if (url.pathname.endsWith('/maps/route')) { routeCalls++; result = { route: { coordinates: url.searchParams.get('coordinates').split(';').map(pair => pair.split(',').map(Number)), durationMin: 30, distanceKm: 17, source: 'OSRM', trafficAware: false } }; }
+    await request.fulfill({ json: result });
+  });
+  await context.route('https://tiles.openfreemap.org/styles/liberty', request => failStyle ? request.fulfill({ status: 503, headers: { 'access-control-allow-origin': '*' }, body: 'Unavailable' }) : request.continue());
+  const page = await context.newPage(), errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const ready = async id => expect.poll(async () => {
+    const frame = page.frames().find(frame => frame.parentFrame());
+    return frame?.evaluate(id => typeof map !== 'undefined' && appliedStyleId === id && styleReady && map.loaded(), id).catch(() => false);
+  }, { timeout: 45000 }).toBe(true);
+  const open = async () => { await page.getByRole('button', { name: 'Map layers', exact: true }).click(); await expect(page.getByRole('heading', { name: 'Map layers', exact: true })).toBeVisible(); };
+  const choose = async (name, id) => { await page.getByRole('radio', { name, exact: true }).click(); await expect(page.getByRole('heading', { name: 'Map layers', exact: true })).toHaveCount(0, { timeout: 20000 }); await ready(id); };
+  await page.goto('http://127.0.0.1:' + server.address().port + '/(driver)');
+  await ready('light');
+  await page.getByRole('button', { name: 'Route and vehicle capacity', exact: true }).tap();
+  await expect(page.getByText('Route & capacity', { exact: true })).toBeVisible();
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Close route settings', exact: true }).tap();
+  await expect(page.getByText('Route & capacity', { exact: true })).toHaveCount(0);
+  for (const width of [320, 393, 430]) {
+    await page.setViewportSize({ width, height: 852 });
+    const online = await page.getByRole('button', { name: 'Go offline', exact: true }).boundingBox();
+    const notifications = await page.getByRole('button', { name: 'Notifications', exact: true }).boundingBox();
+    const route = await page.getByRole('button', { name: 'Route and vehicle capacity', exact: true }).boundingBox();
+    assert.ok(online && notifications && route);
+    assert.ok(Math.abs(online.y - notifications.y) < 1, 'Top controls align');
+    assert.ok(Math.abs(route.x - online.x) < 1 && Math.abs(route.x + route.width - notifications.x - notifications.width) < 1, 'Route card shares header edges');
+    assert.ok(online.x + online.width < notifications.x && online.y + online.height < route.y, 'Header controls do not overlap');
+    assert.ok(route.x >= 0 && route.x + route.width <= width, 'Header fits narrow phones');
+    await page.screenshot({ path: artifacts + '/driver-map-header-' + width + '.png' });
+    await page.getByRole('button', { name: 'Route and vehicle capacity', exact: true }).tap();
+    await page.getByRole('button', { name: 'Route stops', exact: true }).scrollIntoViewIfNeeded();
+    await page.getByTestId('close-route-settings').tap();
+    await expect(page.getByText('Route & capacity', { exact: true })).toHaveCount(0);
+  }
+  await page.setViewportSize({ width: 393, height: 852 });
+  await open();
+  await expect(page.getByRole('radio', { name: 'Automatic', exact: true })).toBeChecked();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: artifacts + '/map-layers-picker.png' });
+  const frame = page.frames().find(frame => frame.parentFrame());
+  await frame.evaluate(() => { map.fire('dragstart'); map.jumpTo({ center: [120.91, 15.72], zoom: 14 }); });
+  await choose('Streets', 'streets');
+  assert.deepEqual(await frame.evaluate(() => [map.getCenter().lng, map.getCenter().lat, map.getZoom(), following]), [120.91, 15.72, 14, false]);
+  assert.equal(await page.evaluate(() => localStorage.getItem('@sakayne_map_style')), 'streets');
+  await expect(page.getByRole('button', { name: 'Open map in full screen', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Center map on my location', exact: true })).toBeVisible();
+  await open(); await choose('Bright', 'bright');
+  await ready('bright'); await page.reload(); await ready('bright');
+  failStyle = true; await open(); await page.getByRole('radio', { name: 'Streets', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Could not load this map style', { timeout: 15000 });
+  await ready('bright');
+  failStyle = false; await choose('Streets', 'streets');
+  await open(); await page.evaluate(() => { window.failStyleSave = true; });
+  await page.getByRole('radio', { name: 'Dark', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Could not save your map choice');
+  assert.equal(await page.evaluate(() => localStorage.getItem('@sakayne_map_style')), 'streets');
+  await page.evaluate(() => { window.failStyleSave = false; });
+  await choose('Dark', 'dark'); await open(); await choose('Automatic', 'light');
+  await open(); await choose('Terrain', 'terrain');
+  assert.equal(await page.frames().find(frame => frame.parentFrame()).evaluate(() => !!map.getTerrain()), true);
+  await open(); await choose('3D buildings', '3d');
+  assert.ok(await page.frames().find(frame => frame.parentFrame()).evaluate(() => map.getPitch() > 50));
+  await open(); await choose('Automatic', 'light');
+  assert.equal(routeCalls, 2, 'Only reload should refetch road geometry');
+  await page.setViewportSize({ width: 320, height: 568 }); await open();
+  await page.getByRole('radio', { name: 'Dark', exact: true }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole('radio', { name: 'Dark', exact: true })).toBeInViewport();
+  await page.getByRole('button', { name: 'Close map layers', exact: true }).click();
+  assert.deepEqual(errors, []);
+  await context.close();
+  console.log('PASS: map layers, driver controls, persistence, preserved camera, retry, storage failure and small screens');
+} finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }

@@ -25,7 +25,7 @@ test('account email uses the configured SMTP transport and renders its content',
   });
   server.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
   process.env.SMTP_HOST = '127.0.0.1'; process.env.SMTP_PORT = String(server.address().port);
-  process.env.SMTP_USER = 'mail@example.test'; process.env.SMTP_PASS = 'local-fixture'; process.env.APP_NAME = 'SakayNE';
+  process.env.SMTP_USER = 'mail@example.test'; process.env.SMTP_PASS = 'local-fixture'; process.env.APP_NAME = 'Sakay';
   try {
     const result = await sendEmail({ to: 'passenger@example.test', subject: 'Verify your account', html: '<p>Your code is 123456</p>' });
     assert.equal(result.accepted[0], 'passenger@example.test');

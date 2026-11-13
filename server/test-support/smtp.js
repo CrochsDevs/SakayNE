@@ -25,7 +25,7 @@ export async function startTestSmtp() {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   return {
     messages,
-    environment: { SMTP_HOST: '127.0.0.1', SMTP_PORT: String(server.address().port), SMTP_USER: 'mail@example.test', SMTP_PASS: 'local-fixture', APP_NAME: 'SakayNE' },
+    environment: { SMTP_HOST: '127.0.0.1', SMTP_PORT: String(server.address().port), SMTP_USER: 'mail@example.test', SMTP_PASS: 'local-fixture', APP_NAME: 'Sakay' },
     close: () => new Promise(resolve => server.close(resolve)),
   };
 }

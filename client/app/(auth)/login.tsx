@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image } from 'react-native';
+import BrandMark from '@/src/components/ui/BrandMark';
+import { useTheme } from '@/src/store/theme';
+import { useState, useSyncExternalStore } from 'react';
+import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +11,10 @@ import { login } from '@/src/auth/auth.service';
 import { scale, verticalScale, moderateScale } from '@/src/utils/responsive';
 import { showError } from '@/src/utils/toast';
 import { useTranslation } from 'react-i18next';
+
+const subscribeToHydration = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
 
 function isEmail(value: string) {
   return /\S+@\S+\.\S+/.test(value);
@@ -20,8 +26,8 @@ function isPhone(value: string) {
 
 export default function LoginScreen() {
   const { t } = useTranslation();
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
+  const { colors } = useTheme();
+  const hydrated = useSyncExternalStore(subscribeToHydration, clientSnapshot, serverSnapshot);
   const { email, registration } = useLocalSearchParams<{ email?: string; registration?: string }>();
   const [identifier, setIdentifier] = useState(typeof email === 'string' ? email.trim().toLowerCase() : '');
   const [password, setPassword] = useState('');
@@ -58,30 +64,26 @@ export default function LoginScreen() {
     }
   };
 
-  if (!hydrated) return <SafeAreaView style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator color="#3F8451" /></SafeAreaView>;
+  if (!hydrated) return <SafeAreaView style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator color={colors.primaryLight} /></SafeAreaView>;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: scale(24) }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <TouchableOpacity onPress={() => router.back()} style={{ width: scale(44), height: scale(44), justifyContent: 'center', alignItems: 'center', marginTop: verticalScale(8) }}>
-            <View style={{ width: scale(40), height: scale(40), borderRadius: scale(20), backgroundColor: '#F5F7F5', justifyContent: 'center', alignItems: 'center' }}>
-              <Ionicons name="arrow-back" size={moderateScale(22)} color="#0D1F16" />
+            <View style={{ width: scale(40), height: scale(40), borderRadius: scale(20), backgroundColor: colors.mintSurface, justifyContent: 'center', alignItems: 'center' }}>
+              <Ionicons name="arrow-back" size={moderateScale(22)} color={colors.text} />
             </View>
           </TouchableOpacity>
 
           <View style={{ flex: 1, justifyContent: 'center' }}>
             <View style={{ alignItems: 'center', marginBottom: 0 }}>
-              <Image
-                source={require('../../assets/logo/SakayNE.png')}
-                style={{ width: scale(150), height: scale(150) }}
-                resizeMode="contain"
-              />
+              <View style={{ alignSelf: 'center', paddingVertical: 30 }}><BrandMark large /></View>
             </View>
-            <Text style={{ fontSize: moderateScale(28), fontWeight: '800', textAlign: 'center', color: '#0D1F16', marginBottom: verticalScale(6) }}>
+            <Text style={{ fontSize: moderateScale(28), fontWeight: '800', textAlign: 'center', color: colors.text, marginBottom: verticalScale(6) }}>
               {t('auth.welcomeBack')}
             </Text>
-            <Text style={{ fontSize: moderateScale(15), textAlign: 'center', color: '#8FA092', marginBottom: verticalScale(40), lineHeight: moderateScale(22) }}>
+            <Text style={{ fontSize: moderateScale(15), textAlign: 'center', color: colors.textTertiary, marginBottom: verticalScale(40), lineHeight: moderateScale(22) }}>
               {t('auth.signInSubtitle')}
             </Text>
 
@@ -89,41 +91,41 @@ export default function LoginScreen() {
               onChangeText={(text) => { setIdentifier(text); setErrors((e) => ({ ...e, identifier: undefined })); }}
               keyboardType="default" icon="person-outline" error={errors.identifier} />
 
-            {registration === 'verified' && <Text style={{ fontSize: moderateScale(14), color: '#3F8451', marginBottom: verticalScale(16), lineHeight: moderateScale(20) }}>Email verified. Sign in with the password you created during registration.</Text>}
+            {registration === 'verified' && <Text style={{ fontSize: moderateScale(14), color: colors.primaryLight, marginBottom: verticalScale(16), lineHeight: moderateScale(20) }}>Email verified. Sign in with the password you created during registration.</Text>}
 
             <Input label={t('auth.password')} placeholder={t('auth.passwordPlaceholder')} value={password}
               onChangeText={(text) => { setPassword(text); setErrors((e) => ({ ...e, password: undefined })); }}
               secureTextEntry icon="lock-closed-outline" error={errors.password} />
 
             <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')} style={{ alignSelf: 'flex-end', marginBottom: verticalScale(32) }}>
-              <Text style={{ fontSize: moderateScale(14), fontWeight: '600', color: '#3F8451' }}>{t('auth.forgotPassword')}</Text>
+              <Text style={{ fontSize: moderateScale(14), fontWeight: '600', color: colors.primaryLight }}>{t('auth.forgotPassword')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={handleLogin} disabled={loading} activeOpacity={0.85}
-              style={{ width: '100%', height: verticalScale(54), borderRadius: scale(16), justifyContent: 'center', alignItems: 'center', backgroundColor: '#3F8451', opacity: loading ? 0.7 : 1 }}>
+              style={{ width: '100%', height: verticalScale(54), borderRadius: scale(16), justifyContent: 'center', alignItems: 'center', backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }}>
               {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ fontSize: moderateScale(16), fontWeight: '700', color: '#fff' }}>{t('auth.signIn')}</Text>}
             </TouchableOpacity>
           </View>
 
           <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: verticalScale(24) }}>
-            <Text style={{ fontSize: moderateScale(14), color: '#8FA092' }}>{t('auth.noAccount')}</Text>
+            <Text style={{ fontSize: moderateScale(14), color: colors.textTertiary }}>{t('auth.noAccount')}</Text>
           </View>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('auth.passengerSignup')} disabled={loading}
             onPress={() => router.push('/(auth)/signup')} activeOpacity={0.85}
-            style={{ minHeight: verticalScale(48), justifyContent: 'center', alignItems: 'center', borderRadius: scale(16), backgroundColor: '#F5F7F5', borderWidth: 1, borderColor: '#D6E4D8', marginBottom: verticalScale(12) }}>
-            <Text style={{ fontSize: moderateScale(14), fontWeight: '700', color: '#3F8451' }}>{t('auth.passengerSignup')}</Text>
+            style={{ minHeight: verticalScale(48), justifyContent: 'center', alignItems: 'center', borderRadius: scale(16), backgroundColor: colors.mintSurface, borderWidth: 1, borderColor: colors.border, marginBottom: verticalScale(12) }}>
+            <Text style={{ fontSize: moderateScale(14), fontWeight: '700', color: colors.primaryLight }}>{t('auth.passengerSignup')}</Text>
           </TouchableOpacity>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="Register as driver" disabled={loading}
             onPress={() => router.push('/driver-register')} activeOpacity={0.85}
-            style={{ minHeight: verticalScale(48), justifyContent: 'center', alignItems: 'center', borderRadius: scale(16), borderWidth: 1, borderColor: '#D6E4D8', marginBottom: verticalScale(24) }}>
-            <Text style={{ fontSize: moderateScale(14), fontWeight: '700', color: '#3F8451' }}>Register as driver</Text>
+            style={{ minHeight: verticalScale(48), justifyContent: 'center', alignItems: 'center', borderRadius: scale(16), borderWidth: 1, borderColor: colors.border, marginBottom: verticalScale(24) }}>
+            <Text style={{ fontSize: moderateScale(14), fontWeight: '700', color: colors.primaryLight }}>Register as driver</Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
 
       {transitioning && (
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' }}>
-          <DotLoader color="#3F8451" size={12} />
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }}>
+          <DotLoader color={colors.primaryLight} size={12} />
         </View>
       )}
     </SafeAreaView>

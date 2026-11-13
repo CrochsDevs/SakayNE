@@ -19,7 +19,7 @@ export default function AboutScreen() {
 
         <View style={{ alignItems: 'center', marginBottom: 32 }}>
           <Image source={require('@/assets/logo/SakayNE.png')} style={{ width: 80, height: 80 }} contentFit="contain" />
-          <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text, marginTop: 16 }}>SakayNE</Text>
+          <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text, marginTop: 16 }}>Sakay</Text>
           <Text style={{ fontSize: 14, color: colors.textTertiary, marginTop: 4 }}>{t('about.version')}</Text>
         </View>
 

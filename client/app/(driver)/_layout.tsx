@@ -1,15 +1,19 @@
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { View, Platform } from 'react-native';
+import { View } from 'react-native';
 import { useTheme } from '@/src/store/theme';
 import { getAuth } from '@/src/auth/auth.store';
 import { useState, useEffect } from 'react';
 import ApprovalPendingScreen from '@/src/components/ApprovalPendingScreen';
 import { refreshCurrentUser } from '@/src/auth/auth.service';
 import { usePolling } from '@/src/ride/usePolling';
+import { AppTabIcon, useAppTabBar } from '@/src/components/ui/AppTabBar';
+import { useInterfaceText } from '@/src/i18n/useInterfaceText';
+
 
 export default function DriverLayout() {
   const { colors } = useTheme();
+  const translate = useInterfaceText();
+  const screenOptions = useAppTabBar();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const session = usePolling(refreshCurrentUser, null);
@@ -37,35 +41,26 @@ export default function DriverLayout() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textTertiary,
-          tabBarStyle: {
-            backgroundColor: colors.surface,
-            borderTopWidth: 1,
-            borderTopColor: colors.borderLight,
-            height: Platform.OS === 'ios' ? 88 : 65,
-            paddingBottom: Platform.OS === 'ios' ? 28 : 10,
-            paddingTop: 8,
-            elevation: 0,
-          },
-          tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: -2 },
-          tabBarIconStyle: { marginBottom: -2 },
-        }}
-      >
+      <Tabs screenOptions={screenOptions}>
         <Tabs.Screen name="index" options={{
-          title: 'Trips',
-          tabBarIcon: ({ color }) => <Ionicons name="navigate-outline" size={22} color={color} />,
+          title: translate('Home'),
+          tabBarIcon: ({ color, focused }) => <AppTabIcon name={focused ? 'home' : 'home-outline'} focused={focused} color={color} />,
         }} />
-        <Tabs.Screen name="earnings" options={{
-          title: 'Earnings',
-          tabBarIcon: ({ color }) => <Ionicons name="wallet-outline" size={22} color={color} />,
+        <Tabs.Screen name="driver-trips" options={{
+          title: translate('Trips'),
+          tabBarIcon: ({ color, focused }) => <AppTabIcon name={focused ? 'bus' : 'bus-outline'} focused={focused} color={color} />,
+        }} />
+        <Tabs.Screen name="driver-inbox" options={{
+          title: translate('Messages'),
+          tabBarIcon: ({ color, focused }) => <AppTabIcon name={focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'} focused={focused} color={color} />,
+        }} />
+        <Tabs.Screen name="driver-wallet" options={{
+          title: translate('Wallet'),
+          tabBarIcon: ({ color, focused }) => <AppTabIcon name={focused ? 'wallet' : 'wallet-outline'} focused={focused} color={color} />,
         }} />
         <Tabs.Screen name="settings" options={{
-          title: 'Settings',
-          tabBarIcon: ({ color }) => <Ionicons name="settings-outline" size={22} color={color} />,
+          title: translate('Settings'),
+          tabBarIcon: ({ color, focused }) => <AppTabIcon name={focused ? 'settings' : 'settings-outline'} focused={focused} color={color} />,
         }} />
       </Tabs>
     </View>

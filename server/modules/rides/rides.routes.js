@@ -4,23 +4,16 @@ import { ObjectId } from 'mongodb';
 import { getDB, transaction } from '../../config/db.js';
 import { asyncRoute, requireValue } from '../../shared/errors.js';
 import { authenticate, requireRole } from '../../shared/session.js';
-import { tripQuote, canTransition, activeStatuses } from '../../shared/transit.js';
+import { tripQuote, canTransition, activeStatuses, towns, validLocation } from '../../shared/transit.js';
+import { findRoutePickupArea } from '../../../client/src/data/pickup-area.mjs';
 import { normalizePosition, detectOccupancy, hasSeatHold } from './geolocation.js';
+import { expireReservations } from './expiration.js';
 
 const router = Router();
 router.use(authenticate);
 // Requests clean up abandoned matches; driver transitions and expiration share a transaction.
 router.use(asyncRoute(async (req, res, next) => {
-  const expired = await getDB().collection('rides').find({ status: 'pending', expiresAt: { $lte: new Date() } }).limit(25).toArray();
-  for (const candidate of expired) await transaction(async (db, session) => {
-    const options = { session };
-    const ride = await db.collection('rides').findOne({ _id: candidate._id, status: 'pending', expiresAt: { $lte: new Date() } }, options);
-    if (!ride) return;
-    await db.collection('rides').updateOne({ _id: ride._id }, { $set: { status: 'cancelled', cancellationReason: 'Driver confirmation timed out', cancelledBy: 'system', updatedAt: new Date().toISOString() } }, options);
-    await db.collection('drivers').updateOne({ _id: id(ride.driverId) }, { $inc: { reservedSeats: -ride.seats } }, options);
-    await notify(db, session, ride.passengerEmail, ride, 'Driver confirmation timed out. Please book another vehicle.');
-    await notify(db, session, ride.driverEmail, ride, 'A booking request expired before confirmation.');
-  });
+  await expireReservations();
   next();
 }));
 const id = value => { requireValue(ObjectId.isValid(value), 'Invalid booking ID'); return new ObjectId(value); };
@@ -32,7 +25,7 @@ function serialize(ride, driver, role = 'passenger') {
     vehicle: ride.vehicle || driver?.plateNo || '', seats: ride.seats ?? 1,
     unitFare: ride.unitFare ?? ride.fare, minutes: ride.minutes ?? 0,
     ...(role === 'passenger' ? { boardingCode } : {}), id: ride._id.toString(), createdAt: new Date(ride.createdAt).getTime(),
-    driverLocation: driver?.location || null, driverPhone: driver?.phone || '', progress: ride.status === 'completed' ? 1 : 0 };
+    driverLocation: activeStatuses.includes(ride.status) ? driver?.location || null : null, driverPhone: driver?.phone || '', progress: ride.status === 'completed' ? 1 : 0 };
 }
 // Legacy history points to a driver by email, rather than the current ObjectId.
 async function findRideDriver(db, ride, options = {}) {
@@ -62,11 +55,27 @@ router.post('/', requireRole('passenger'), asyncRoute(async (req, res) => {
   const { driverId, routeId, fromId, toId, seats = 1, requestId } = req.body;
   requireValue(typeof requestId === 'string' && /^[a-zA-Z0-9_-]{8,80}$/.test(requestId), 'Booking request ID is required');
   const quote = tripQuote(routeId, fromId, toId, seats);
+  let pickupLocation;
+  if (req.body.pickupLocation !== undefined) {
+    const position = req.body.pickupLocation;
+    requireValue(validLocation(position), 'Invalid pickup GPS coordinates');
+    // Pickup is an agreed pin, so approximate phone locations are allowed.
+    // Automatic seat detection keeps its separate, stricter accuracy rules.
+    requireValue(position.accuracy === null || Number.isFinite(position.accuracy) && position.accuracy >= 0, 'Invalid pickup GPS accuracy');
+    const capturedAt = typeof position.capturedAt === 'string' ? Date.parse(position.capturedAt) : NaN;
+    requireValue(Number.isFinite(capturedAt) && capturedAt <= Date.now() + 5000 && Date.now() - capturedAt <= 15 * 60000, 'Refresh your pickup location before booking.');
+    requireValue(findRoutePickupArea(position, towns, quote.route)?.id === fromId, 'Your GPS pickup does not match this route fare area. Choose a ride again.');
+    pickupLocation = { latitude: position.latitude, longitude: position.longitude, accuracy: position.accuracy, capturedAt: new Date(capturedAt).toISOString() };
+  }
   let ride;
   await transaction(async (db, session) => {
     const options = { session };
     const previous = await db.collection('rides').findOne({ passengerEmail: req.auth.email, requestId }, options);
-    if (previous) { ride = previous; return; }
+    if (previous) {
+      requireValue(['driverId', 'routeId', 'fromId', 'toId', 'seats'].every(key => previous[key] === ({ driverId, routeId, fromId, toId, seats })[key]), 'This request ID belongs to a different booking. Refresh before trying again.', 409);
+      requireValue(JSON.stringify(previous.pickupLocation) === JSON.stringify(pickupLocation), 'This request ID belongs to a different pickup. Refresh before trying again.', 409);
+      ride = previous; return;
+    }
     requireValue(!await db.collection('rides').findOne({ passengerEmail: req.auth.email, status: { $in: activeStatuses } }, options), 'You already have an active booking', 409);
     const driver = await db.collection('drivers').findOne({ _id: id(driverId), verified: true, approvalStatus: 'approved', isAvailable: true, routeId }, options);
     requireValue(driver && driver.onlineUntil > new Date(), 'Driver is offline or no longer serving this route', 409);
@@ -80,6 +89,7 @@ router.post('/', requireRole('passenger'), asyncRoute(async (req, res) => {
       passengerName: (await db.collection('users').findOne({ email: req.auth.email }, options)).fullName,
       driverEmail: driver.email, driverId, driverName: driver.fullName, vehicle: driver.plateNo,
       routeId, type: quote.route.type, fromId, toId, fromName: quote.fromName, toName: quote.toName,
+      ...(pickupLocation ? { pickupLocation } : {}),
       fare: quote.fare, unitFare: quote.unitFare, minutes: quote.minutes, seats, paymentMethod: 'cash', paymentStatus: 'unpaid', occupancyStatus: 'waiting', geoTrackingEnabled: false,
       boardingCode: randomBytes(3).toString('hex').toUpperCase(), status: 'pending', expiresAt: new Date(Date.now() + 5 * 60000), createdAt: new Date().toISOString() };
     await db.collection('rides').insertOne(ride, options);

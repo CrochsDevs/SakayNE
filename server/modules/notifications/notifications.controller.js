@@ -1,3 +1,4 @@
+import { sendError } from '../../shared/errors.js';
 import { getDB } from "../../config/db.js";
 import { ObjectId } from "../../shared/id.js";
 
@@ -16,7 +17,7 @@ export async function getNotifications(req, res) {
 
     res.json({ notifications: notifs, unread });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -35,7 +36,7 @@ export async function markRead(req, res) {
 
     res.json({ message: "Marked as read" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -46,7 +47,7 @@ export async function getSettings(req, res) {
     const settings = await getDB().collection("notification_settings").findOne({ email });
     res.json({ push: settings?.push ?? true, email: settings?.emailEnabled ?? true, sms: settings?.sms ?? false, promo: settings?.promo ?? true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -62,6 +63,6 @@ export async function updateSettings(req, res) {
     );
     res.json({ message: "Settings updated" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 }

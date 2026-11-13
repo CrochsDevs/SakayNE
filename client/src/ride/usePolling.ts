@@ -1,20 +1,37 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
+import { AppState } from 'react-native';
+import { createPoller } from './polling.mjs';
 // Focus scoped polling prevents abandoned screens from updating or overlapping requests.
 export function usePolling<T>(loader: () => Promise<T>, initial: T, delay = 5000) {
   const [data, setData] = useState<T>(initial);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const latest = useRef(loader); latest.current = loader;
-  const active = useRef(false);
-  const busy = useRef(false);
-  const refresh = useCallback(async () => {
-    if (busy.current) return;
-    busy.current = true;
-    try { const result = await latest.current(); if (active.current) { setData(result); setError(''); } }
-    catch (e) { if (active.current) setError(e instanceof Error ? e.message : 'Unable to load'); }
-    finally { busy.current = false; if (active.current) setLoading(false); }
+  const latest = useRef(loader);
+  useLayoutEffect(() => { latest.current = loader; }, [loader]);
+  const poller = useRef<ReturnType<typeof createPoller<T>> | null>(null);
+  useLayoutEffect(() => {
+    const controller = createPoller<T>({
+      load: () => latest.current(),
+      onData: value => { setData(value); setError(''); },
+      onError: e => setError(e instanceof Error ? e.message : 'Unable to load'),
+      onSettled: () => setLoading(false),
+    });
+    poller.current = controller;
+    return () => controller.stop();
   }, []);
-  useFocusEffect(useCallback(() => { active.current = true; void refresh(); const timer = setInterval(refresh, delay); return () => { active.current = false; clearInterval(timer); }; }, [refresh, delay]));
-  return { data, loading, error, refresh };
+  useLayoutEffect(() => { poller.current?.setDelay(delay); }, [delay]);
+  const refresh = useCallback(() => poller.current?.refresh() || Promise.resolve(), []);
+  useFocusEffect(useCallback(() => {
+    const controller = poller.current;
+    if (!controller) return;
+    const sync = () => {
+      if (AppState.currentState === 'background' || AppState.currentState === 'inactive') controller.stop();
+      else void controller.start();
+    };
+    sync();
+    const subscription = AppState.addEventListener('change', sync);
+    return () => { controller.stop(); subscription.remove(); };
+  }, []));
+  return { data, loading, error, refresh, setData };
 }

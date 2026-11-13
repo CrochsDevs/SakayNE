@@ -75,7 +75,7 @@ export default function DriverRegisterScreen() {
   const TOWNS = ['Aliaga','Bongabon','Cabanatuan City','Cabiao','Carranglan','Cuyapo','Gabaldon','Gapan City','Gen. M. Natividad','Gen. Tinio','Guimba','Jaen','Laur','Licab','Llanera','Lupao','Nampicuan','Palayan City','Pantabangan','Penaranda','Quezon','Rizal','San Antonio','San Isidro','San Jose City','San Leonardo','Santa Rosa','Sci. City of Munoz','Santo Domingo','Talugtug','Talavera','Zaragoza'];
 
   const u = (key: string, value: string) => { setForm((f) => ({ ...f, [key]: value })); setErrors((e) => ({ ...e, [key]: undefined })); };
-  const B = '#3F8451'; const C = '#0D1F16'; const G = '#8FA092'; const bg = '#F5F7F5';
+  const B = '#087F8C'; const C = '#153B43'; const G = '#728A8E'; const bg = '#F7F5EF';
 
   const validateStep = (s: number) => {
     const e: Record<string, string | undefined> = {};
@@ -123,10 +123,7 @@ export default function DriverRegisterScreen() {
     <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{
       flex: 1, height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center',
       backgroundColor: outline ? bg : (color || B),
-      shadowColor: outline ? 'transparent' : B,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
+      boxShadow: outline ? 'none' : '0 4px 8px rgba(8,127,140,0.2)',
       elevation: 4,
     }}>
       <Text style={{ fontSize: 17, fontWeight: '700', color: outline ? G : '#fff' }}>{label}</Text>
@@ -154,7 +151,7 @@ export default function DriverRegisterScreen() {
     return (
       <TouchableOpacity onPress={() => pickDocument(key)} activeOpacity={0.7}
         style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: bg, borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: file ? B : '#E5E7EB', borderStyle: file ? 'solid' : 'dashed' }}>
-        <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: file ? '#F0F7F1' : '#E5E7EB', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: file ? '#E5F5F1' : '#E5E7EB', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
           <Ionicons name={file ? 'checkmark-circle' : 'camera-outline'} size={20} color={file ? B : G} />
         </View>
         <View style={{ flex: 1 }}>
@@ -229,7 +226,7 @@ export default function DriverRegisterScreen() {
             <Input label="Ulitin ang Password *" placeholder="I-ulit" value={form.confirmPassword} onChangeText={(v) => u('confirmPassword', v)} secureTextEntry icon="lock-closed-outline" error={errors.confirmPassword} />
 
             <View style={{ height: 20 }} />
-            <TouchableOpacity onPress={nextStep} activeOpacity={0.85} style={{ width: '100%', height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: B, shadowColor: B, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 }}>
+            <TouchableOpacity onPress={nextStep} activeOpacity={0.85} style={{ width: '100%', height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: B, boxShadow: '0 4px 8px rgba(8,127,140,0.2)', elevation: 4 }}>
               <Text style={{ fontSize: 17, fontWeight: '700', color: '#fff' }}>Susunod</Text>
             </TouchableOpacity>
           </>}
@@ -261,7 +258,7 @@ export default function DriverRegisterScreen() {
             </View>
             {errors.route && <Text style={{ fontSize: 12, color: '#C0392B', marginTop: -12, marginBottom: 12, marginLeft: 4 }}>{errors.route}</Text>}
             {showTownPicker && (
-              <View style={{ maxHeight: 200, marginBottom: 16, backgroundColor: '#F9FAFB', borderRadius: 14, borderWidth: 1, borderColor: '#F0F0F5', overflow: 'hidden' }}>
+              <View style={{ maxHeight: 200, marginBottom: 16, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#EAF0EC', overflow: 'hidden' }}>
                 <ScrollView style={{ maxHeight: 200 }}>
                   {TOWNS.map((t) => {
                     const sameTown = showTownPicker === 'to' && t === routeFrom || showTownPicker === 'from' && t === routeTo;
@@ -272,7 +269,7 @@ export default function DriverRegisterScreen() {
                       else { setRouteTo(t); setErrors((e) => ({ ...e, route: undefined })); }
                       setShowTownPicker(null);
                     }}
-                      style={{ paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F0F0F5', backgroundColor: (routeFrom === t || routeTo === t) ? B + '10' : 'transparent', opacity: sameTown ? 0.3 : 1 }}>
+                      style={{ paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EAF0EC', backgroundColor: (routeFrom === t || routeTo === t) ? B + '10' : 'transparent', opacity: sameTown ? 0.3 : 1 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                         <Text style={{ fontSize: 14, color: sameTown ? G : (routeFrom === t || routeTo === t) ? B : C }}>{t}</Text>
                         {(routeFrom === t || routeTo === t) && <Ionicons name="checkmark" size={18} color={B} />}

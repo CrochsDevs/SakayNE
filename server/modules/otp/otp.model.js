@@ -9,17 +9,20 @@ export async function saveOTP(email, otp, purpose = 'registration') {
     otp,
     purpose,
     createdAt: new Date(),
+    attempts: 0,
     expiresAt: new Date(Date.now() + 5 * 60 * 1000),
   });
 }
 
 export async function findOTP(email, otp, purpose = 'registration') {
-  return collection().findOne({
+  // One shared, atomic budget for both verification URLs, across IPs and processes.
+  const record = await collection().findOneAndUpdate({
     email,
-    otp,
     purpose,
     expiresAt: { $gt: new Date() },
-  });
+    $or: [{ attempts: { $lt: 5 } }, { attempts: { $exists: false } }],
+  }, { $inc: { attempts: 1 } }, { returnDocument: 'before' });
+  return record?.otp === otp ? record : null;
 }
 
 export async function deleteOTP(email) {

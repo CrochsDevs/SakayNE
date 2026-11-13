@@ -53,10 +53,22 @@ export async function ensureIndexes(database) {
     throw error;
   }
   await database.collection('rides').createIndex({ driverEmail: 1, createdAt: -1 });
+  await database.collection('rides').createIndex({ passengerEmail: 1, createdAt: -1 });
+  await database.collection('rides').createIndex({ driverId: 1, status: 1 });
   await database.collection('rides').createIndex({ status: 1, expiresAt: 1 });
   await database.collection('drivers').createIndex({ routeId: 1, isAvailable: 1 });
+  await database.collection('drivers').createIndex({ email: 1 });
+  await database.collection('drivers').createIndex({ isAvailable: 1, verified: 1, approvalStatus: 1, onlineUntil: 1 });
+  await database.collection('notifications').createIndex({ email: 1, createdAt: -1 });
+  await database.collection('notification_settings').createIndex({ email: 1 });
+  await database.collection('token_history').createIndex({ email: 1, createdAt: -1 });
+  await database.collection('audit_logs').createIndex({ targetId: 1, createdAt: -1 });
   await database.collection('ride_messages').createIndex({ rideId: 1, createdAt: -1 });
   await database.collection('otps').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+  await database.collection('otps').createIndex({ email: 1, purpose: 1 });
+  await database.collection('pending_users').createIndex({ email: 1 });
+  // Unverified applications contain personal documents and must not accumulate indefinitely.
+  await database.collection('pending_users').createIndex({ createdAt: 1 }, { expireAfterSeconds: 86400 });
 }
 
 export async function transaction(work) {

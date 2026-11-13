@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Animated, Easing, Platform, View } from 'react-native';
 
 const DOT_SIZE = 10;
 const DOT_COUNT = 3;
 
-export default function DotLoader({ color = '#3F8451', size = DOT_SIZE }) {
-  const animations = useRef(Array.from({ length: DOT_COUNT }, () => new Animated.Value(0))).current;
+export default function DotLoader({ color = '#087F8C', size = DOT_SIZE }) {
+  const [animations] = useState(() => Array.from({ length: DOT_COUNT }, () => new Animated.Value(0)));
 
   useEffect(() => {
     const anims = animations.map((anim, i) =>

@@ -8,7 +8,9 @@ import { startTestSmtp } from '../test-support/smtp.js';
 import { fileURLToPath } from "node:url";
 import { closeDB, connectDB, getDB } from "../config/db.js";
 import { createSession } from "../shared/session.js";
-import { canTransition, routes, tripQuote } from "../shared/transit.js";
+import { expireReservations } from '../modules/rides/expiration.js';
+import { canTransition, routes, tripQuote, towns } from "../shared/transit.js";
+import { findPickupArea, findRoutePickupArea } from '../../client/src/data/pickup-area.mjs';
 import app from "../src/app.js";
 
 let mongo, server, base, tokens, driverId;
@@ -107,6 +109,110 @@ async function transition(ride, status, role = "driver", boardingCode) {
     boardingCode,
   });
 }
+
+test('stolen sessions stop working after account deletion or a role change', async () => {
+  await getDB().collection('auth').updateOne({ email: 'admin@example.test' }, { $set: { role: 'passenger' } });
+  assert.equal((await api('/admin/drivers', 'admin')).status, 401);
+  await getDB().collection('auth').deleteOne({ email: 'other@example.test' });
+  assert.equal((await api('/auth/me', 'other')).status, 401);
+});
+
+test('OTP attempts share a five-attempt account budget across both public verification URLs', async () => {
+  const email = 'limited@example.test';
+  await getDB().collection('otps').insertOne({ email, otp: '123456', purpose: 'registration', attempts: 0, expiresAt: new Date(Date.now() + 300000) });
+  const wrong = await Promise.all(Array.from({ length: 8 }, (_, i) => api(i % 2 ? '/otp/verify' : '/auth/verify-email', 'anonymous', 'POST', { email, otp: '000000' })));
+  assert.ok(wrong.every(result => result.status === 400));
+  assert.equal((await getDB().collection('otps').findOne({ email })).attempts, 5);
+  assert.equal((await api('/auth/verify-email', 'anonymous', 'POST', { email, otp: '123456' })).status, 400);
+});
+
+test('signup rejects bcrypt truncation, mail recipient syntax and untyped driver identifiers', async () => {
+  const body = { fullName: 'Test', email: 'new@example.test', phone: '09123456789', password: 'TestPassword123' };
+  for (const extra of [{ password: 'a'.repeat(73) }, { password: '\u00e9'.repeat(37) }, { email: 'victim@example.test,other@example.test' }, { role: 'driver', licenseNo: { $ne: '' }, plateNo: 'TEST', vehicleType: 'bus' }]) {
+    assert.equal((await api('/auth/signup', 'anonymous', 'POST', { ...body, ...extra })).status, 400);
+  }
+});
+
+test('API rejects oversized regular JSON, hides malformed input and disables response caching', async () => {
+  const large = await api('/notifications/settings', 'passenger', 'PUT', { padding: 'a'.repeat(70000) });
+  assert.equal(large.status, 413);
+  const broken = await fetch(base + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"password":"DO_NOT_REFLECT"' });
+  assert.equal(broken.status, 400);
+  assert.equal((await broken.text()).includes('DO_NOT_REFLECT'), false);
+  const health = await fetch(base + '/health');
+  assert.equal(health.headers.get('cache-control'), 'no-store');
+  assert.equal(health.headers.get('x-content-type-options'), 'nosniff');
+  assert.equal(health.headers.get('x-powered-by'), null);
+});
+
+test('GPS pickup preserves the exact pin for passenger and assigned driver without enabling live tracking', async () => {
+  const town = towns.find(town => town.id === 'cabanatuan');
+  const pickupLocation = { latitude: town.lat + 0.001, longitude: town.lng + 0.001, accuracy: 8, capturedAt: new Date().toISOString() };
+  const request = input({ pickupLocation });
+  const response = await api('/rides', 'passenger', 'POST', request);
+  assert.equal(response.status, 201, JSON.stringify(response.body));
+  assert.deepEqual(response.body.ride.pickupLocation, pickupLocation);
+  assert.equal(response.body.ride.geoTrackingEnabled, false);
+  assert.equal(response.body.ride.passengerLocation, undefined);
+  const driver = await api('/rides/' + response.body.ride.id, 'driver');
+  assert.deepEqual(driver.body.ride.pickupLocation, pickupLocation);
+  assert.equal((await api('/rides/' + response.body.ride.id, 'other')).status, 404);
+  assert.equal((await api('/rides', 'passenger', 'POST', request)).body.ride.id, response.body.ride.id);
+  assert.equal((await api('/rides', 'passenger', 'POST', { ...request, pickupLocation: { ...pickupLocation, latitude: pickupLocation.latitude + 0.001 } })).status, 409);
+});
+
+test('approximate GPS pickup keeps its reported uncertainty and can be booked', async () => {
+  const town = towns.find(town => town.id === 'cabanatuan');
+  for (const [index, accuracy] of [2500, null].entries()) {
+    const pickupLocation = { latitude: town.lat, longitude: town.lng, accuracy, capturedAt: new Date().toISOString() };
+    const request = input({ pickupLocation });
+    const result = await api('/rides', index === 0 ? 'passenger' : 'other', 'POST', request);
+    assert.equal(result.status, 201, JSON.stringify(result.body));
+    assert.deepEqual(result.body.ride.pickupLocation, pickupLocation);
+    assert.equal(result.body.ride.geoTrackingEnabled, false);
+  }
+});
+
+test('GPS pickup rejects invalid, stale, distant and mismatched fare-area locations', async () => {
+  const town = towns.find(town => town.id === 'cabanatuan');
+  const valid = { latitude: town.lat, longitude: town.lng, accuracy: 8, capturedAt: new Date().toISOString() };
+  const otherTown = towns.find(town => town.id === 'palayan');
+  for (const pickupLocation of [
+    { ...valid, latitude: 100 }, { ...valid, accuracy: -1 }, { ...valid, accuracy: '100' },
+    { ...valid, capturedAt: new Date(Date.now() - 16 * 60000).toISOString() },
+    { ...valid, capturedAt: new Date(Date.now() + 60000).toISOString() },
+    { ...valid, latitude: 0, longitude: 0 },
+    { ...valid, latitude: otherTown.lat, longitude: otherTown.lng },
+  ]) assert.equal((await api('/rides', 'passenger', 'POST', input({ pickupLocation }))).status, 400);
+  assert.equal((await getDB().collection('drivers').findOne({ _id: driverId })).reservedSeats, 0);
+});
+
+test('GPS fare area uses the nearest known town and refuses distant or invalid positions', () => {
+  const town = towns.find(town => town.id === 'munoz');
+  assert.equal(findPickupArea({ latitude: town.lat, longitude: town.lng }, towns).id, town.id);
+  assert.equal(findPickupArea({ latitude: 0, longitude: 0 }, towns), null);
+  assert.equal(findPickupArea({ latitude: NaN, longitude: 180 }, towns), null);
+});
+
+test('map endpoints require authentication and validate inputs before provider requests', async () => {
+  assert.equal((await api('/maps/route?coordinates=120,15;121,16', 'anonymous')).status, 401);
+  assert.equal((await api('/maps/route?coordinates=999,15;121,16')).status, 400);
+  assert.equal((await api('/maps/search?q=x')).status, 400);
+  assert.equal((await api('/maps/reverse?lat=95&lon=120')).status, 400);
+  assert.equal((await api('/maps/reverse?lat=&lon=120')).status, 400);
+});
+
+test('GPS pickup near a neighboring catalog town can match the selected route fare area', async () => {
+  const neighboringTown = towns.find(town => town.id === 'sta_rosa');
+  const position = { latitude: neighboringTown.lat, longitude: neighboringTown.lng, accuracy: 20, capturedAt: new Date().toISOString() };
+  const route = routes.find(route => route.id === routeId);
+  assert.equal(findPickupArea(position, towns).id, 'sta_rosa');
+  assert.equal(findRoutePickupArea(position, towns, route).id, 'cabanatuan');
+  const result = await api('/rides', 'passenger', 'POST', input({ pickupLocation: position }));
+  assert.equal(result.status, 201, JSON.stringify(result.body));
+  assert.deepEqual(result.body.ride.pickupLocation, position);
+  assert.equal(findRoutePickupArea({ latitude: 14.5995, longitude: 120.9842 }, towns, route), null);
+});
 
 test("legacy booking history retains places and loads email-based driver references", async () => {
   const db = getDB();
@@ -346,6 +452,22 @@ test("active reservations prevent route changes and approval revocation", async 
     200,
   );
 });
+test("online drivers can switch route direction without going offline when bookings are clear", async () => {
+  for (const nextRoute of ['jeep-cabanatuan-san-jose', 'jeep-san-jose-cabanatuan']) {
+    const result = await api('/drivers/availability', 'driver', 'PUT', {
+      isAvailable: true, routeId: nextRoute, capacity: 3,
+    });
+    assert.equal(result.status, 200, JSON.stringify(result.body));
+    assert.equal(result.body.driver.routeId, nextRoute);
+    assert.equal(result.body.driver.isAvailable, true);
+    const profile = (await api('/drivers/me', 'driver')).body.driver;
+    assert.equal(profile.routeId, nextRoute);
+    assert.equal(profile.availableSeats, 3);
+    const fleet = (await api('/drivers')).body.drivers;
+    assert.equal(fleet.find(driver => driver.id === driverId.toString()).routeId, nextRoute);
+  }
+});
+
 test("bus booking uses the selected intermediate pickup and final destination", async () => {
   const busRoute = "bus-cabanatuan-manila";
   await getDB()
@@ -363,6 +485,40 @@ test("bus booking uses the selected intermediate pickup and final destination", 
   assert.equal(ride.fromName, "Gapan City");
   assert.equal(ride.toName, "Manila");
   assert.equal(ride.minutes, 140);
+  assert.equal((await api('/drivers')).body.drivers[0].seats, 41);
+  for (const status of ['accepted', 'arrived', 'ongoing', 'completed']) {
+    const result = await transition(ride, status, 'driver', ride.boardingCode);
+    assert.equal(result.status, 200, JSON.stringify(result.body));
+  }
+  assert.equal((await api('/drivers')).body.drivers[0].seats, 45);
+  assert.equal((await api('/rides/active')).body.ride, null);
+  assert.equal((await api('/rides')).body.rides[0].paymentStatus, 'paid');
+  assert.equal((await api('/drivers/earnings', 'driver')).body.total, ride.fare);
+});
+
+test('passengers can view online jeepney and bus GPS on the fleet map, with no offline locations exposed', async () => {
+  assert.equal((await api('/drivers', 'anonymous')).status, 401);
+  for (const [vehicleType, selectedRoute, type] of [
+    ['jeepney', routeId, 'jeep'], ['bus', 'bus-cabanatuan-manila', 'bus'],
+  ]) {
+    await getDB().collection('drivers').updateOne({ _id: driverId }, { $set: {
+      vehicleType, routeId: selectedRoute, isAvailable: true, onlineUntil: new Date(Date.now() + 90000),
+    }, $unset: { location: '' } });
+    assert.equal((await api('/drivers')).body.drivers[0].location, null);
+    const published = await api('/drivers/location', 'driver', 'POST', { latitude: 15.487, longitude: 120.974, accuracy: 4 });
+    assert.equal(published.status, 200);
+    const driver = (await api('/drivers')).body.drivers[0];
+    assert.equal(driver.type, type);
+    assert.equal(driver.location.latitude, 15.487);
+    assert.equal(driver.location.longitude, 120.974);
+    assert.equal(driver.location.accuracy, 4);
+    assert.ok(Number.isFinite(Date.parse(driver.location.updatedAt)));
+    assert.equal(driver.email, undefined);
+    await getDB().collection('drivers').updateOne({ _id: driverId }, { $set: { isAvailable: false } });
+    assert.equal((await api('/drivers')).body.drivers.length, 0);
+    await getDB().collection('drivers').updateOne({ _id: driverId }, { $set: { isAvailable: true, onlineUntil: new Date(0) } });
+    assert.equal((await api('/drivers')).body.drivers.length, 0);
+  }
 });
 test("daily rewards are server controlled and atomic under duplicate claims", async () => {
   assert.equal(
@@ -669,7 +825,7 @@ test('driver signup sends a usable OTP, uploads documents concurrently, verifies
   });
   try {
     const email = 'otp-driver@example.test';
-    const documents = Object.fromEntries(['licenseFront', 'licenseBack', 'vehicleReg', 'selfie'].map(key => [key, { base64: 'fixture', mimeType: 'image/png' }]));
+    const documents = Object.fromEntries(['licenseFront', 'licenseBack', 'vehicleReg', 'selfie'].map(key => [key, { base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aN1cAAAAASUVORK5CYII=', mimeType: 'image/png' }]));
     assert.equal((await api('/auth/signup', 'anonymous', 'POST', {
       fullName: 'OTP Driver', email: email.toUpperCase(), phone: '09999999999', password: 'TestPassword123', role: 'driver',
       licenseNo: 'N01TEST', plateNo: 'OTP123', vehicleType: 'bus', documents,
@@ -705,7 +861,7 @@ test('a document upload failure preserves the correct OTP and pending registrati
   const db = getDB(), email = 'upload-retry@example.test';
   await db.collection('pending_users').insertOne({ email, data: {
     email, fullName: 'Retry Driver', phone: '09999999999', password: await bcrypt.hash('TestPassword123', 4), role: 'driver',
-    documents: { selfie: { base64: 'fixture', mimeType: 'image/png' } },
+    documents: { selfie: { base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aN1cAAAAASUVORK5CYII=', mimeType: 'image/png' } },
   } });
   await db.collection('otps').insertOne({ email, otp: '123456', purpose: 'registration', expiresAt: new Date(Date.now() + 300000) });
   const upload = mock.method(cloudinary.uploader, 'upload', async () => { throw new Error('Storage temporarily unavailable'); });
@@ -799,6 +955,105 @@ function gps(extra = {}) {
     ...extra,
   };
 }
+
+test('journey discovery checks direction, seat count, online state and role', async () => {
+  const path = '/drivers/journeys?fromId=cabanatuan&toId=palayan&seats=2';
+  const result = await api(path);
+  assert.equal(result.status, 200);
+  const match = result.body.journeys.find(j => j.routeId === routeId);
+  assert.equal(match.drivers[0].id, driverId.toString());
+  assert.equal(match.fare, tripQuote(routeId, 'cabanatuan', 'palayan', 2).fare);
+  assert.equal((await api(path, 'driver')).status, 403);
+  assert.equal((await api(path, 'anonymous')).status, 401);
+  assert.equal((await api(path + '0')).status, 400);
+  assert.equal((await api('/drivers/journeys?fromId=cabanatuan&toId=cabanatuan')).status, 400);
+  const reverse = await api('/drivers/journeys?fromId=palayan&toId=cabanatuan');
+  assert.ok(reverse.body.journeys.every(j => !j.drivers.some(d => d.id === driverId.toString())));
+  await booking({ seats: 2 });
+  assert.equal((await api(path)).body.journeys.find(j => j.routeId === routeId).drivers.length, 0);
+  await getDB().collection('drivers').updateOne({ _id: driverId }, { $set: { onlineUntil: new Date(0) } });
+  assert.equal((await api('/drivers/journeys?fromId=cabanatuan&toId=palayan')).body.journeys.find(j => j.routeId === routeId).drivers.length, 0);
+});
+
+test('fleet discovery releases expired capacity once across simultaneous requests', async () => {
+  const ride = await booking({ seats: 3 });
+  await getDB().collection('rides').updateOne({ _id: new ObjectId(ride.id) }, { $set: { expiresAt: new Date(0) } });
+  const responses = await Promise.all([api('/drivers'), api('/drivers'), api('/rides/active')]);
+  assert.ok(responses.every(r => r.status === 200));
+  assert.equal((await api('/drivers')).body.drivers[0].seats, 3);
+  assert.equal((await getDB().collection('drivers').findOne({ _id: driverId })).reservedSeats, 0);
+  assert.equal(await getDB().collection('notifications').countDocuments({ email: 'passenger@example.test' }), 1);
+});
+
+test('concurrent expiry requests share one scan and a failed scan does not block future sweeps', async () => {
+  const db = getDB(), originalCollection = db.collection.bind(db);
+  let scans = 0, fail = false;
+  const interception = mock.method(db, 'collection', (name, ...args) => {
+    const collection = originalCollection(name, ...args);
+    if (name === 'rides') {
+      const find = collection.find.bind(collection);
+      collection.find = (query, ...options) => {
+        if (query?.status === 'pending' && query.expiresAt?.$lte) {
+          scans++;
+          if (fail) return { limit: () => ({ toArray: async () => { throw new Error('temporary database failure'); } }) };
+        }
+        return find(query, ...options);
+      };
+    }
+    return collection;
+  });
+  try {
+    await Promise.all(Array.from({ length: 30 }, () => expireReservations()));
+    assert.equal(scans, 1);
+    fail = true; await assert.rejects(expireReservations(), /temporary database failure/);
+    fail = false; await expireReservations(); assert.equal(scans, 3);
+  } finally { interception.mock.restore(); }
+});
+
+test('idempotent retries reject changed booking payloads without modifying capacity', async () => {
+  const request = input();
+  const first = await api('/rides', 'passenger', 'POST', request);
+  const retry = await api('/rides', 'passenger', 'POST', request);
+  assert.equal(retry.body.ride.id, first.body.ride.id);
+  assert.equal((await api('/rides', 'passenger', 'POST', { ...request, seats: 2 })).status, 409);
+  assert.equal((await api('/drivers')).body.drivers[0].seats, 2);
+});
+
+test('cancelled bookings cannot track a drivers current location', async () => {
+  const ride = await booking();
+  await getDB().collection('drivers').updateOne({ _id: driverId }, { $set: { location: gps() } });
+  assert.ok((await api(`/rides/${ride.id}`)).body.ride.driverLocation);
+  await transition(ride, 'cancelled', 'passenger');
+  assert.equal((await api(`/rides/${ride.id}`)).body.ride.driverLocation, null);
+});
+
+test('driver application reviews create transactional audit records', async () => {
+  assert.equal((await api(`/admin/drivers/${driverId}`, 'admin', 'PATCH', { approvalStatus: 'rejected' })).status, 200);
+  const audit = await getDB().collection('audit_logs').findOne({ targetId: driverId.toString() });
+  assert.equal(audit.action, 'driver.approval');
+  assert.equal(audit.before, 'approved');
+  assert.equal(audit.after, 'rejected');
+  assert.ok(audit.actorId);
+});
+
+test('operator overview is admin-only and counts paid collections rather than estimates', async () => {
+  const ride = await booking({ seats: 2 });
+  assert.equal((await api('/admin/operations')).status, 403);
+  assert.equal((await api('/admin/operations', 'driver')).status, 403);
+  const pending = (await api('/admin/operations', 'admin')).body;
+  assert.equal(pending.activeBookings, 1);
+  assert.equal(pending.recordedCollectionsToday, 0);
+  assert.equal(pending.recent[0].passengerEmail, undefined);
+  assert.equal(pending.recent[0].boardingCode, undefined);
+  await transition(ride, 'accepted');
+  await transition(ride, 'arrived');
+  await transition(ride, 'ongoing', 'driver', ride.boardingCode);
+  await transition(ride, 'completed');
+  const completed = (await api('/admin/operations', 'admin')).body;
+  assert.equal(completed.completedToday, 1);
+  assert.equal(completed.activeBookings, 0);
+  assert.equal(completed.recordedCollectionsToday, ride.fare);
+});
 async function geoPair(ride, meters = 0) {
   assert.equal(
     (await api("/drivers/location", "driver", "POST", gps())).status,
@@ -849,6 +1104,9 @@ test("GPS boards the booked seats and alighting releases them without marking ca
   assert.equal(driver.reservedSeats, 0);
   assert.equal(driver.availableSeats, 3);
   assert.equal((await api("/drivers/earnings", "driver")).body.total, 0);
+  assert.equal((await api('/drivers/availability', 'driver', 'PUT', {
+    isAvailable: true, routeId: 'jeep-san-jose-cabanatuan', capacity: 3,
+  })).status, 409, 'Unpaid ongoing trips still prevent a direction change after seats are released');
   const newRide = await booking({ seats: 3 }, "other");
   assert.equal(
     (await api(`/rides/${ride.id}/location`, "passenger", "POST", gps())).body

@@ -15,7 +15,7 @@ export async function apiFetch(url: string, options: RequestInit & { timeoutMs?:
     if (response.status === 401 && !url.endsWith('/auth/login')) await clearAuth();
     return response;
   } catch (error) {
-    throw new Error(error instanceof Error && error.name === 'AbortError' ? 'Server request timed out. Please retry.' : 'Cannot reach SakayNE server. Check your connection and API address.');
+    throw new Error(error instanceof Error && error.name === 'AbortError' ? 'Server request timed out. Please retry.' : 'Cannot reach Sakay server. Check your connection and API address.');
   } finally { clearTimeout(timer); }
 }
 export async function apiRequest<T = any>(path: string, options: RequestInit = {}): Promise<T> {

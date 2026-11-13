@@ -1,6 +1,7 @@
 import { TouchableOpacity, Text, ActivityIndicator, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors } from '@/src/constants/Colors';
+
+import { useTheme } from '@/src/store/theme';
 
 interface ButtonProps {
   title: string;
@@ -23,6 +24,7 @@ export function Button({
   icon,
   fullWidth = true,
 }: ButtonProps) {
+  const { colors: Colors, brand: Brand } = useTheme();
   const sizeClasses = {
     sm: 'py-2.5 px-4',
     md: 'py-3.5 px-6',
@@ -51,7 +53,9 @@ export function Button({
           style={{
             opacity: disabled ? 0.5 : 1,
             elevation: 4,
-            boxShadow: '0 4px 8px rgba(63,132,81,0.3)',
+            minHeight: 48,
+            borderRadius: 17,
+            boxShadow: '0 6px 16px rgba(0,0,0,0.16)',
           }}
         >
           {loading ? (
@@ -126,14 +130,14 @@ export function Button({
     >
       <View
         className={`rounded-xl ${sizeClasses[size]} items-center justify-center flex-row`}
-        style={{ backgroundColor: Colors.secondary, opacity: disabled ? 0.5 : 1 }}
+        style={{ backgroundColor: Brand.sunshine, opacity: disabled ? 0.5 : 1, minHeight: 48, borderRadius: 17 }}
       >
         {loading ? (
           <ActivityIndicator color={Colors.text} size="small" />
         ) : (
           <>
             {icon && <View className="mr-2">{icon}</View>}
-            <Text className={`font-bold ${textSizes[size]}`} style={{ color: Colors.text }}>
+            <Text className={`font-bold ${textSizes[size]}`} style={{ color: Brand.ink }}>
               {title}
             </Text>
           </>

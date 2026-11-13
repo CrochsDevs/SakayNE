@@ -1,42 +1,44 @@
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { View, Platform } from 'react-native';
+import { useSyncExternalStore } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+import { AppTabIcon, useAppTabBar } from '@/src/components/ui/AppTabBar';
 import { useTheme } from '@/src/store/theme';
+import { useInterfaceText } from '@/src/i18n/useInterfaceText';
+
+const subscribeToHydration = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
 
 export default function PassengerLayout() {
   const { colors } = useTheme();
+  const translate = useInterfaceText();
+  const ready = useSyncExternalStore(subscribeToHydration, clientSnapshot, serverSnapshot);
+  const screenOptions = useAppTabBar();
+
+  if (!ready) return <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center' }}><ActivityIndicator color={colors.primaryLight} /></View>;
 
   return (
     <View style={{ flex: 1 }}>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-          tabBarActiveTintColor: colors.primary,
-          tabBarInactiveTintColor: colors.textTertiary,
-          tabBarStyle: {
-            backgroundColor: colors.surface,
-            borderTopWidth: 1,
-            borderTopColor: colors.borderLight,
-            height: Platform.OS === 'ios' ? 88 : 65,
-            paddingBottom: Platform.OS === 'ios' ? 28 : 10,
-            paddingTop: 8,
-            elevation: 0,
-          },
-          tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: -2 },
-          tabBarIconStyle: { marginBottom: -2 },
-        }}
-      >
+      <Tabs screenOptions={screenOptions}>
         <Tabs.Screen name="home" options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={22} color={color} />,
+          title: translate('Home'),
+          tabBarIcon: ({ color, focused }) => <AppTabIcon name={focused ? 'home' : 'home-outline'} focused={focused} color={color} />,
         }} />
         <Tabs.Screen name="rides" options={{
-          title: 'Rides',
-          tabBarIcon: ({ color }) => <Ionicons name="car-outline" size={22} color={color} />,
+          title: translate('Rides'),
+          tabBarIcon: ({ color, focused }) => <AppTabIcon name={focused ? 'car' : 'car-outline'} focused={focused} color={color} />,
+        }} />
+        <Tabs.Screen name="inbox" options={{
+          title: translate('Messages'),
+          tabBarIcon: ({ color, focused }) => <AppTabIcon name={focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'} focused={focused} color={color} />,
+        }} />
+        <Tabs.Screen name="wallet" options={{
+          title: translate('Wallet'),
+          tabBarIcon: ({ color, focused }) => <AppTabIcon name={focused ? 'wallet' : 'wallet-outline'} focused={focused} color={color} />,
         }} />
         <Tabs.Screen name="settings" options={{
-          title: 'Settings',
-          tabBarIcon: ({ color }) => <Ionicons name="settings-outline" size={22} color={color} />,
+          title: translate('Settings'),
+          tabBarIcon: ({ color, focused }) => <AppTabIcon name={focused ? 'settings' : 'settings-outline'} focused={focused} color={color} />,
         }} />
       </Tabs>
     </View>

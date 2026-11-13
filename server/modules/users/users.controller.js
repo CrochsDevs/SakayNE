@@ -1,3 +1,4 @@
+import { sendError } from '../../shared/errors.js';
 import * as UserModel from "./users.model.js";
 import { getDB } from "../../config/db.js";
 import { uploadImage } from "../../config/cloudinary.js";
@@ -10,7 +11,7 @@ export async function getProfile(req, res) {
 
     res.json({ user });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -27,7 +28,7 @@ export async function updateProfile(req, res) {
     await getDB().collection('drivers').updateOne({ email: user.email }, { $set: { fullName, phone } });
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -48,6 +49,6 @@ export async function uploadAvatar(req, res) {
 
     res.json({ avatar: url });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 }

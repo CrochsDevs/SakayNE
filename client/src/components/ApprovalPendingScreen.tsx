@@ -4,10 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { logout } from '@/src/auth/auth.service';
 import { router } from 'expo-router';
 
-const B = '#3F8451';
-const C = '#0D1F16';
-const G = '#8FA092';
-const bg = '#F5F7F5';
+const B = '#087F8C';
+const C = '#153B43';
+const G = '#728A8E';
+const bg = '#F7F5EF';
 
 export default function ApprovalPendingScreen({ status = 'pending', fullName }: { status?: 'pending' | 'rejected'; fullName?: string }) {
   const isRejected = status === 'rejected';
@@ -68,7 +68,7 @@ export default function ApprovalPendingScreen({ status = 'pending', fullName }: 
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
             <View style={{
               width: 36, height: 36, borderRadius: 18,
-              backgroundColor: '#F0F7F1', justifyContent: 'center', alignItems: 'center', marginRight: 12,
+              backgroundColor: '#E5F5F1', justifyContent: 'center', alignItems: 'center', marginRight: 12,
             }}>
               <Ionicons name="shield-checkmark" size={18} color={B} />
             </View>

@@ -13,6 +13,8 @@ export const authenticate = asyncRoute(async (req, res, next) => {
   requireValue(typeof token === 'string' && token.length === 64, 'Please sign in again', 401);
   const session = await getDB().collection('sessions').findOne({ tokenHash: hash(token), expiresAt: { $gt: new Date() } });
   requireValue(session, 'Session expired. Please sign in again', 401);
+  const account = await getDB().collection('auth').findOne({ email: session.email });
+  requireValue(account && account.role === session.role, 'Account access changed. Please sign in again', 401);
   const user = await getDB().collection('users').findOne({ email: session.email });
   requireValue(user, 'Account not found', 401);
   req.auth = { email: session.email, role: session.role, userId: user._id.toString(), tokenHash: session.tokenHash };

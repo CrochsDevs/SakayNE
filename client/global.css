@@ -3,3 +3,28 @@
 @import "tailwindcss/utilities.css";
  
 @import "nativewind/theme";
+
+/* The app owns its theme. Prevent browser Auto Dark from recoloring light mode. */
+:root {
+  color-scheme: only light;
+  background-color: #ffffff;
+}
+
+:root[data-app-theme="dark"] {
+  color-scheme: dark;
+  background-color: #181a19;
+}
+
+body {
+  background-color: inherit;
+}
+
+/* Follow the visible phone viewport when browser controls expand or collapse. */
+@supports (height: 100dvh) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+    min-height: 0;
+  }
+}

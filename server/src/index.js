@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import http from "http";
 import { connectDB, closeDB } from "../config/db.js";
 import app from "./app.js";
+import { startReservationExpiry } from '../modules/rides/expiration.js';
 
 dotenv.config();
 
@@ -22,9 +23,11 @@ const startServer = async () => {
       });
     });
     console.log(`🚀 Server running at http://0.0.0.0:${server.address().port}`);
+    const stopExpiry = startReservationExpiry();
+    server.once('close', stopExpiry);
   } catch (error) {
     console.error(error.code === 'EADDRINUSE'
-      ? `Cannot start SakayNE: port ${PORT} is already in use. Stop the existing API process with Ctrl+C in its terminal before running npm start again.`
+      ? `Cannot start Sakay: port ${PORT} is already in use. Stop the existing API process with Ctrl+C in its terminal before running npm start again.`
       : `Server startup failed: ${error.message}`);
     await closeDB();
     process.exitCode = 1;

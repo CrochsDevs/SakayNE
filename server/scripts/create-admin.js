@@ -11,7 +11,7 @@ try {
   const hashed = await bcrypt.hash(password, 12);
   await transaction(async (database, session) => {
     await database.collection('auth').insertOne({ email, password: hashed, role: 'admin', verified: true, createdAt: new Date().toISOString() }, { session });
-    await database.collection('users').insertOne({ email, fullName: 'SakayNE Administrator', phone: '', createdAt: new Date().toISOString() }, { session });
+    await database.collection('users').insertOne({ email, fullName: 'Sakay Administrator', phone: '', createdAt: new Date().toISOString() }, { session });
   });
   console.log('Admin created. Sign in to review driver applications.');
 } finally { await closeDB(); }

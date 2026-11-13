@@ -1,3 +1,4 @@
+import { sendError } from '../../shared/errors.js';
 import { sendEmail } from "../../config/mail.js";
 import { otpTemplate } from "../../config/email-template.js";
 import * as OTPModel from "./otp.model.js";
@@ -18,13 +19,13 @@ export async function sendOTP(req, res) {
     await OTPModel.saveOTP(email, otp);
     await sendEmail({
       to: email,
-      subject: "Your SakayNE OTP Code",
+      subject: "Your Sakay OTP Code",
       html: otpTemplate({ otp }),
     });
 
     res.json({ message: "OTP sent successfully" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 }
 

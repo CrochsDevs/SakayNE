@@ -14,7 +14,7 @@ export default function LogoutScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' }}>
-      <DotLoader color="#3F8451" size={12} />
+      <DotLoader color="#087F8C" size={12} />
     </SafeAreaView>
   );
 }

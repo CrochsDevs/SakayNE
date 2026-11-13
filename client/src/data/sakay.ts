@@ -22,9 +22,19 @@ export interface RouteDef {
   destinationId: string;
   destinationLabel: string;
   stops: RouteStop[];
+  mapDetailsEnabled?: boolean;
+  // Road junctions used instead of town centers for intermediate routing only.
+  // These guide the preview corridor; they are not boarding or drop-off pins.
+  roadViaOverrides?: Record<string, { latitude: number; longitude: number }>;
+  // Ordered road points before and after a mapped stop, in this route's direction.
+  roadApproaches?: Record<string, {
+    before?: { latitude: number; longitude: number }[];
+    after?: { latitude: number; longitude: number }[];
+  }>;
+  terminalPoints?: Record<string, { name: string; latitude: number; longitude: number; source: string }>;
   // Direction-specific boarding points, independent of municipality centers.
   // Add only when the operator's stop location and source have been verified.
-  serviceStops?: { id: string; name: string; lat: number; lng: number; source: string }[];
+  serviceStops?: { id: string; townId?: string; name: string; lat: number; lng: number; source: string }[];
   servicePath?: { source: string; points: { latitude: number; longitude: number }[] };
 }
 
@@ -32,6 +42,10 @@ export function getServiceStops(route?: RouteDef) {
   return (route?.serviceStops || []).filter(stop => stop.source.trim()
     && Number.isFinite(stop.lat) && Math.abs(stop.lat) <= 90
     && Number.isFinite(stop.lng) && Math.abs(stop.lng) <= 180);
+}
+
+export function isRouteMapEnabled(route?: RouteDef | null) {
+  return route?.mapDetailsEnabled === true;
 }
 
 export const NE_CENTER = { lat: 15.5781, lng: 120.9756 };
@@ -49,6 +63,7 @@ export interface SakayDriver {
   routeId: string;
   seats: number;
   etaMin: number | null;
+  location?: { latitude: number; longitude: number; accuracy?: number | null; capturedAt?: string; updatedAt: string } | null;
 }
 
 
@@ -74,6 +89,55 @@ export function getRoute(id?: string | null): RouteDef | undefined {
 
 export function getTownName(id?: string | null): string {
   return getTown(id)?.name || '';
+}
+
+export function getRouteMapTown(route: RouteDef | null | undefined, townId: string): Town | undefined {
+  const town = getTown(townId);
+  const terminal = route?.terminalPoints?.[townId];
+  if (town && terminal) return { ...town, name: terminal.name, lat: terminal.latitude, lng: terminal.longitude };
+  const stop = getServiceStops(route || undefined).find(stop => stop.townId === townId);
+  return town && stop ? { ...town, name: stop.name, lat: stop.lat, lng: stop.lng } : town;
+}
+
+export function getServiceMapStops(route?: RouteDef | null, fromId?: string, toId?: string) {
+  if (!route) return [];
+  const from = fromId || route.originId, to = toId || route.destinationId;
+  const towns = new Set(buildSegment(route, from, to).map(stop => stop.townId));
+  return getServiceStops(route).filter(stop => !stop.townId || towns.has(stop.townId)).map((stop, index, all) => ({
+    label: stop.name,
+    coord: { latitude: stop.lat, longitude: stop.lng },
+    isOrigin: stop.townId ? stop.townId === from : index === 0,
+    isDestination: stop.townId ? stop.townId === to : index === all.length - 1,
+  }));
+}
+
+export function getTerminalMapStops(route?: RouteDef | null, fromId?: string, toId?: string) {
+  if (!route) return [];
+  const from = fromId || route.originId, to = toId || route.destinationId;
+  return Object.entries(route.terminalPoints || {}).flatMap(([townId, terminal]) => townId === from || townId === to ? [{
+    label: terminal.name,
+    coord: { latitude: terminal.latitude, longitude: terminal.longitude },
+    isOrigin: townId === from,
+    isDestination: townId === to,
+  }] : []);
+}
+
+export function getRoadWaypoints(route?: RouteDef | null, fromId?: string, toId?: string, pickup?: { latitude: number; longitude: number }) {
+  if (!route) return [];
+  const segment = buildSegment(route, fromId, toId);
+  return segment.flatMap((stop, index) => {
+    const approach = route.roadApproaches?.[stop.townId];
+    if (index === 0 && pickup) return [pickup, ...(index < segment.length - 1 ? approach?.after || [] : [])];
+    const town = getRouteMapTown(route, stop.townId);
+    if (town && approach) return [
+      ...(index > 0 ? approach.before || [] : []),
+      { latitude: town.lat, longitude: town.lng },
+      ...(index < segment.length - 1 ? approach.after || [] : []),
+    ];
+    const via = route.roadViaOverrides?.[stop.townId];
+    if (index > 0 && index < segment.length - 1 && via) return [via];
+    return town ? [{ latitude: town.lat, longitude: town.lng }] : [];
+  });
 }
 
 export interface ReachableStop {

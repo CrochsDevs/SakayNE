@@ -49,7 +49,7 @@ try {
   async function signup(email, driver = false) {
     const response = await fetch(apiBase + '/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
       fullName: 'OTP Browser Test', email, phone: '09999999999', password: 'TestPassword123', role: driver ? 'driver' : 'passenger',
-      ...(driver ? { licenseNo: 'TEST01', plateNo: 'OTP123', vehicleType: 'bus', documents: Object.fromEntries(['licenseFront', 'licenseBack', 'vehicleReg', 'selfie'].map(key => [key, { base64: 'fixture', mimeType: 'image/png' }])) } : {}),
+      ...(driver ? { licenseNo: 'TEST01', plateNo: 'OTP123', vehicleType: 'bus', documents: Object.fromEntries(['licenseFront', 'licenseBack', 'vehicleReg', 'selfie'].map(key => [key, { base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aN1cAAAAASUVORK5CYII=', mimeType: 'image/png' }])) } : {}),
     }) });
     assert.equal(response.status, 200, await response.text());
     const otp = await db.collection('otps').findOne({ email });

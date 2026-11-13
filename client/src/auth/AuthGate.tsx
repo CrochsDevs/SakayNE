@@ -16,7 +16,7 @@ export default function AuthGate() {
       if (!user || !token) return;
       const home = user.role === 'driver' ? '/(driver)' : user.role === 'admin' ? '/admin' : '/(passenger)/home';
       const wrongRole = first === '(driver)' && user.role !== 'driver' || first === '(passenger)' && user.role !== 'passenger' || first === 'admin' && user.role !== 'admin'
-        || ['ride-tracking', 'route-map'].includes(first) && user.role !== 'passenger' || first === 'driver-trip' && user.role !== 'driver';
+        || ['ride-tracking', 'route-map', 'journey-search', 'vehicle-map'].includes(first) && user.role !== 'passenger' || first === 'driver-trip' && user.role !== 'driver';
       if (wrongRole) router.replace(home);
     });
     void check();

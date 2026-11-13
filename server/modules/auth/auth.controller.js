@@ -8,8 +8,11 @@ import * as OTPModel from "../otp/otp.model.js";
 import bcrypt from "bcrypt";
 import { randomInt } from 'node:crypto';
 import { createSession } from '../../shared/session.js';
-import { uploadImage } from '../../config/cloudinary.js';
-import { requireValue } from '../../shared/errors.js';
+import { uploadImage, validateImage } from '../../config/cloudinary.js';
+import { requireValue, sendError } from '../../shared/errors.js';
+
+const validPassword = value => typeof value === 'string' && value.length >= 8 && Buffer.byteLength(value, 'utf8') <= 72;
+const validEmail = value => typeof value === 'string' && value.length <= 254 && /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$/.test(value);
 
 function generateOTP() {
   return randomInt(100000, 1000000).toString();
@@ -19,10 +22,10 @@ export async function signup(req, res) {
   try {
     const { fullName, phone, password, role = 'passenger' } = req.body;
     const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof fullName !== 'string' || !fullName.trim() || typeof phone !== 'string' || !phone.trim() || typeof password !== 'string' || password.length < 8)
-      return res.status(400).json({ error: 'Name, email, phone and a password of at least 8 characters are required' });
+    if (!validEmail(email) || typeof fullName !== 'string' || !fullName.trim() || fullName.length > 150 || typeof phone !== 'string' || !phone.trim() || phone.length > 30 || !validPassword(password))
+      return res.status(400).json({ error: 'Name, valid email, phone and a password of 8 characters to 72 UTF-8 bytes are required' });
     if (!['passenger', 'driver'].includes(role)) return res.status(400).json({ error: 'Invalid registration role' });
-    if (role === 'driver' && (!req.body.licenseNo || !req.body.plateNo || !['bus', 'jeepney'].includes(req.body.vehicleType)))
+    if (role === 'driver' && (![req.body.licenseNo, req.body.plateNo].every(value => typeof value === 'string' && value.trim() && value.length <= 100) || !['bus', 'jeepney'].includes(req.body.vehicleType)))
       return res.status(400).json({ error: 'Driver license, plate number and vehicle type are required' });
 
     const existing = await AuthModel.findByEmail(email);
@@ -40,20 +43,24 @@ export async function signup(req, res) {
     const documents = {};
     for (const key of ['licenseFront', 'licenseBack', 'vehicleReg', 'selfie']) {
       const doc = req.body.documents?.[key];
-      if (doc && typeof doc.base64 === 'string' && doc.base64.length < 2500000 && ['image/jpeg', 'image/png', 'image/webp'].includes(doc.mimeType)) documents[key] = { base64: doc.base64, mimeType: doc.mimeType };
+      if (doc !== undefined) {
+        requireValue(doc && typeof doc.base64 === 'string' && doc.base64.length < 2500000 && ['image/jpeg', 'image/png', 'image/webp'].includes(doc.mimeType), 'Invalid registration document');
+        validateImage(doc.base64, doc.mimeType);
+        documents[key] = { base64: doc.base64, mimeType: doc.mimeType };
+      }
     }
     await AuthModel.savePending(email, { fullName, email, phone, password: hashedPassword, role, licenseNo: req.body.licenseNo, plateNo: req.body.plateNo, vehicleType: req.body.vehicleType, vehicleModel: req.body.vehicleModel, application, documents });
     await OTPModel.saveOTP(email, otp);
 
     await sendEmail({
       to: email,
-      subject: "Verify your SakayNE account",
+      subject: "Verify your Sakay account",
       html: verifyEmailTemplate({ otp }),
     });
 
     res.json({ message: "OTP sent to email", email });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -98,7 +105,7 @@ export async function verifyEmail(req, res) {
 
     res.json({ message: "Account created successfully", email });
   } catch (err) {
-    res.status(err.status || (err.code === 11000 ? 409 : 500)).json({ error: err.code === 11000 ? 'Account already registered' : err.message });
+    sendError(res, err);
   }
 }
 
@@ -139,7 +146,7 @@ export async function login(req, res) {
     if (notifCount === 0) {
       const now = new Date();
       await getDB().collection("notifications").insertMany([
-        { email: authRecord.email, type: "welcome", title: "Welcome to SakayNE!", message: "We're excited to have you on board. Start riding today!", read: false, createdAt: now.toISOString() },
+        { email: authRecord.email, type: "welcome", title: "Welcome to Sakay!", message: "We're excited to have you on board. Start riding today!", read: false, createdAt: now.toISOString() },
       ]);
     }
 
@@ -162,7 +169,7 @@ export async function login(req, res) {
       token: await createSession(authRecord.email, authRecord.role),
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -177,13 +184,13 @@ export async function forgotPassword(req, res) {
     await OTPModel.saveOTP(email, otp, 'reset');
     await sendEmail({
       to: email,
-      subject: "Reset your SakayNE password",
-      html: `<div style="max-width:520px;margin:0 auto;font-family:sans-serif"><div style="background:#0D1F16;padding:32px;border-radius:16px 16px 0 0;text-align:center"><span style="font-size:24px;font-weight:900;color:#fff;letter-spacing:1px">SAKAY</span><span style="font-size:24px;font-weight:300;color:#5AA06D;letter-spacing:1px">NE</span></div><div style="background:#fff;padding:40px 32px;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 16px 16px"><h2 style="font-size:22px;font-weight:800;color:#0D1F16;margin:0 0 8px;text-align:center">Reset your password</h2><p style="font-size:14px;color:#6B7280;margin:0 0 32px;text-align:center">Use this code to reset your password:</p><div style="background:#F0F7F1;border-radius:16px;padding:28px;text-align:center;margin-bottom:28px"><div style="font-size:42px;font-weight:900;color:#0D1F16;letter-spacing:12px;font-family:'Courier New',monospace">${otp}</div></div><p style="font-size:13px;color:#9CA3AF;text-align:center;margin:0">Expires in 5 minutes.</p></div></div>`,
+      subject: "Reset your Sakay password",
+      html: `<div style="max-width:520px;margin:0 auto;font-family:sans-serif"><div style="background:#0D1F16;padding:32px;border-radius:16px 16px 0 0;text-align:center"><span style="font-size:24px;font-weight:900;color:#fff;letter-spacing:1px">SAKAY</span></div><div style="background:#fff;padding:40px 32px;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 16px 16px"><h2 style="font-size:22px;font-weight:800;color:#0D1F16;margin:0 0 8px;text-align:center">Reset your password</h2><p style="font-size:14px;color:#6B7280;margin:0 0 32px;text-align:center">Use this code to reset your password:</p><div style="background:#F0F7F1;border-radius:16px;padding:28px;text-align:center;margin-bottom:28px"><div style="font-size:42px;font-weight:900;color:#0D1F16;letter-spacing:12px;font-family:'Courier New',monospace">${otp}</div></div><p style="font-size:13px;color:#9CA3AF;text-align:center;margin:0">Expires in 5 minutes.</p></div></div>`,
     });
 
     res.json({ message: "OTP sent to email", email });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -192,7 +199,7 @@ export async function resetPassword(req, res) {
     const email = String(req.body.email || '').trim().toLowerCase();
     const { otp, newPassword } = req.body;
     if (typeof otp !== 'string' || !/^\d{6}$/.test(otp)) return res.status(400).json({ error: 'Enter a six-digit reset code' });
-    if (typeof newPassword !== 'string' || newPassword.length < 8) return res.status(400).json({ error: 'Password must have at least 8 characters' });
+    if (!validPassword(newPassword)) return res.status(400).json({ error: 'Password must have at least 8 characters and at most 72 UTF-8 bytes' });
     if (await AuthModel.findPending(email)) return res.status(400).json({ error: 'Finish registration before resetting a password' });
 
     const valid = await OTPModel.findOTP(email, otp, 'reset');
@@ -209,7 +216,7 @@ export async function resetPassword(req, res) {
 
     res.json({ message: "Password reset successfully" });
   } catch (err) {
-    res.status(err.status || 500).json({ error: err.message });
+    sendError(res, err);
   }
 }
 
@@ -232,8 +239,8 @@ export async function changePassword(req, res) {
       return res.status(400).json({ error: "Current password is incorrect" });
     }
 
-    if (typeof newPassword !== 'string' || newPassword.length < 8) {
-      return res.status(400).json({ error: "New password must be at least 8 characters" });
+    if (!validPassword(newPassword)) {
+      return res.status(400).json({ error: 'Password must have at least 8 characters and at most 72 UTF-8 bytes' });
     }
 
     const hashed = await bcrypt.hash(newPassword, 10);
@@ -242,6 +249,6 @@ export async function changePassword(req, res) {
 
     res.json({ message: "Password updated successfully" });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    sendError(res, err);
   }
 }

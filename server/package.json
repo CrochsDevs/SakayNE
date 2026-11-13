@@ -7,9 +7,19 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
     "test": "node --test",
+    "test:performance": "node scripts/api-performance-smoke.js",
+    "test:polling:browser": "node scripts/polling-browser-smoke.js",
     "create-admin": "node scripts/create-admin.js",
     "test:browser": "node scripts/browser-smoke.js",
-    "test:auth:browser": "node scripts/auth-browser-smoke.js"
+    "test:bus:browser": "node scripts/browser-smoke.js --bus",
+    "test:vehicle-map:browser": "node scripts/vehicle-map-browser-smoke.js",
+    "test:map-console:browser": "node scripts/map-console-browser-smoke.js",
+    "test:auth:browser": "node scripts/auth-browser-smoke.js",
+    "test:maps:browser": "node scripts/map-browser-smoke.js",
+    "test:map-stack:browser": "node scripts/map-stack-browser-smoke.js",
+    "test:map-layers:browser": "node scripts/map-layers-browser-smoke.js",
+    "test:route-switch:browser": "node scripts/route-switch-browser-smoke.js",
+    "test:booking-details:browser": "node scripts/booking-details-browser-smoke.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

@@ -10,9 +10,10 @@ import ConfirmModal from '@/src/components/ui/ConfirmModal';
 import { useTheme } from '@/src/store/theme';
 import { useTranslation } from 'react-i18next';
 
+
 export default function SettingsScreen() {
   const { t, i18n } = useTranslation();
-  const { isDark, colors, toggleTheme } = useTheme();
+  const { isDark, colors, brand: Brand, toggleTheme } = useTheme();
   const langLabel = i18n.language === 'fil' ? 'Filipino' : 'English';
   const [user, setUser] = useState<User | null>(null);
   const [showLogout, setShowLogout] = useState(false);
@@ -25,14 +26,14 @@ export default function SettingsScreen() {
     {
       section: t('settings.account'),
       items: [
-        { icon: 'person-circle-outline', label: t('settings.personalInfo'), desc: t('settings.personalInfoDesc'), color: colors.primary, route: 'account-info' },
+        { icon: 'person-circle-outline', label: t('settings.personalInfo'), desc: t('settings.personalInfoDesc'), color: colors.primaryLight, route: 'account-info' },
         { icon: 'lock-closed-outline', label: t('settings.passwordSecurity'), desc: t('settings.passwordSecurityDesc'), color: colors.softFern, route: 'password-security' },
       ],
     },
     {
       section: t('settings.preferences'),
       items: [
-        { icon: 'moon-outline', label: t('settings.darkMode'), desc: isDark ? 'On' : 'Off', color: colors.mossGreen, route: '', isToggle: true },
+        { icon: 'moon-outline', label: t('settings.darkMode'), desc: t(isDark ? 'common.on' : 'common.off'), color: isDark ? Brand.sunshine : colors.primary, route: '', isToggle: true },
         { icon: 'notifications-outline', label: t('settings.notifications'), desc: t('settings.notificationsDesc'), color: colors.softFern, route: 'notifications' },
         { icon: 'globe-outline', label: t('settings.language'), desc: langLabel, color: colors.sageLeaf, route: 'language' },
       ],
@@ -40,7 +41,7 @@ export default function SettingsScreen() {
     {
       section: t('settings.support'),
       items: [
-        { icon: 'help-circle-outline', label: t('settings.helpCenter'), desc: t('settings.helpCenterDesc'), color: colors.emeraldDepth, route: 'help-center' },
+        { icon: 'help-circle-outline', label: t('settings.helpCenter'), desc: t('settings.helpCenterDesc'), color: isDark ? colors.textSecondary : Brand.coral, route: 'help-center' },
         { icon: 'information-circle-outline', label: t('settings.about'), desc: t('settings.aboutDesc'), color: colors.textTertiary, route: 'about' },
       ],
     },
@@ -50,10 +51,12 @@ export default function SettingsScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 24 }}>
-          <View style={{ alignItems: 'center', marginBottom: 32 }}>
+          <Text style={{ fontSize: 29, fontWeight: '900', letterSpacing: -0.8, color: colors.text, marginBottom: 20 }}>{t('settings.profileTitle')}</Text>
+          <View style={{ alignItems: 'center', marginBottom: 28, padding: 24, borderRadius: 26, backgroundColor: colors.mintSurface, borderWidth: 1, borderColor: colors.border }}>
             <Avatar name={user.fullName} size={72} avatar={user.avatar} />
             <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text, marginTop: 12 }}>{user.fullName}</Text>
             <Text style={{ fontSize: 13, color: colors.textTertiary, marginTop: 2 }}>{user.email}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 12, backgroundColor: Brand.sunshine, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}><Ionicons name="sparkles" size={12} color={Brand.ink} /><Text style={{ color: Brand.ink, fontSize: 11, fontWeight: '700' }}>Sakay ka-biyahe</Text></View>
           </View>
 
           {menu.map((section, si) => (
@@ -61,7 +64,7 @@ export default function SettingsScreen() {
               <Text style={{ fontSize: 12, fontWeight: '700', color: colors.textTertiary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, marginLeft: 4 }}>
                 {section.section}
               </Text>
-              <View style={{ backgroundColor: colors.card, borderRadius: 16, overflow: 'hidden' }}>
+              <View style={{ backgroundColor: colors.card, borderRadius: 22, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' }}>
                 {section.items.map((item: any, ii: number) => (
                   <TouchableOpacity
                     key={ii}
@@ -76,7 +79,7 @@ export default function SettingsScreen() {
                       <Text style={{ fontSize: 12, color: colors.textTertiary, marginTop: 1 }}>{item.desc}</Text>
                     </View>
                     {item.isToggle ? (
-                      <Switch value={isDark} onValueChange={toggleTheme} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor={isDark ? colors.primary : '#fff'} />
+                      <Switch value={isDark} onValueChange={toggleTheme} trackColor={{ false: colors.border, true: colors.primary + '60' }} thumbColor="#FFFFFF" />
                     ) : (
                       <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} />
                     )}

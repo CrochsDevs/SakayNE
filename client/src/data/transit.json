@@ -187,6 +187,51 @@
     },
     {
       "id": "jeep-cabanatuan-san-jose",
+      "mapDetailsEnabled": true,
+      "serviceStops": [
+        {
+          "id": "talavera-northbound-jeep-dropoff",
+          "townId": "talavera",
+          "name": "Talavera Drop-off",
+          "lat": 15.584694,
+          "lng": 120.919742,
+          "source": "User-provided highway drop-off for Cabanatuan to San Jose: 15.584694, 120.919742"
+        },
+        {
+          "id": "baloc-northbound-jeep-dropoff",
+          "townId": "baloc",
+          "name": "Baloc Drop-off",
+          "lat": 15.642027,
+          "lng": 120.886145,
+          "source": "User-provided Baloc drop-off, restored for the return direction: 15.642027, 120.886145"
+        },
+        {
+          "id": "munoz-northbound-jeep-dropoff",
+          "townId": "munoz",
+          "name": "Muñoz Drop-off",
+          "lat": 15.713745,
+          "lng": 120.905717,
+          "source": "User-confirmed Cabanatuan to San Jose drop-off via Bayuga Street: 15.713745, 120.905717"
+        }
+      ],
+      "roadViaOverrides": {
+        "baloc": { "latitude": 15.641727, "longitude": 120.887023 },
+        "talavera": { "latitude": 15.60784, "longitude": 120.921094 }
+      },
+      "terminalPoints": {
+        "cabanatuan": {
+          "name": "Cabanatuan Central Terminal",
+          "latitude": 15.4724483,
+          "longitude": 120.9692117,
+          "source": "https://www.openstreetmap.org/relation/3668238"
+        },
+        "sanjose": {
+          "name": "WalterMart San Jose",
+          "latitude": 15.7972918,
+          "longitude": 120.9940545,
+          "source": "WalterMart roadside stop: https://www.openstreetmap.org/node/2598156131; store: https://www.waltermartdelivery.com.ph/stores/waltermart-san-jose"
+        }
+      },
       "type": "jeep",
       "label": "Cabanatuan • San Jose",
       "originId": "cabanatuan",
@@ -217,6 +262,63 @@
     },
     {
       "id": "jeep-san-jose-cabanatuan",
+      "mapDetailsEnabled": true,
+      "serviceStops": [
+        {
+          "id": "munoz-jeep-dropoff",
+          "townId": "munoz",
+          "name": "Muñoz Drop-off",
+          "lat": 15.713847,
+          "lng": 120.903991,
+          "source": "Exact jeep drop-off coordinates provided by the user: 15.713847, 120.903991"
+        },
+        {
+          "id": "baloc-jeep-dropoff",
+          "townId": "baloc",
+          "name": "Baloc Drop-off",
+          "lat": 15.642027,
+          "lng": 120.886145,
+          "source": "Exact jeep drop-off coordinates provided by the user: 15.642027, 120.886145"
+        },
+        {
+          "id": "talavera-jeep-dropoff",
+          "townId": "talavera",
+          "name": "Talavera Drop-off",
+          "lat": 15.584677,
+          "lng": 120.918712,
+          "source": "Exact jeep drop-off coordinates provided by the user: 15.584677, 120.918712"
+        }
+      ],
+      "roadViaOverrides": {
+        "munoz": { "latitude": 15.7138, "longitude": 120.90345 },
+        "baloc": { "latitude": 15.641727, "longitude": 120.887023 }
+      },
+      "roadApproaches": {
+        "talavera": {
+          "before": [
+            { "latitude": 15.60784, "longitude": 120.921094 },
+            { "latitude": 15.58961, "longitude": 120.919571 }
+          ],
+          "after": [
+            { "latitude": 15.58201, "longitude": 120.918808 },
+            { "latitude": 15.58195, "longitude": 120.919708 }
+          ]
+        }
+      },
+      "terminalPoints": {
+        "sanjose": {
+          "name": "Start",
+          "latitude": 15.791744,
+          "longitude": 120.989919,
+          "source": "User-confirmed start opposite Palay Monument; highway location verified with OSRM beside https://www.openstreetmap.org/way/802781844"
+        },
+        "cabanatuan": {
+          "name": "Cabanatuan Central Terminal",
+          "latitude": 15.4724483,
+          "longitude": 120.9692117,
+          "source": "https://www.openstreetmap.org/relation/3668238"
+        }
+      },
       "type": "jeep",
       "label": "San Jose • Cabanatuan",
       "originId": "sanjose",
@@ -247,6 +349,54 @@
     },
     {
       "id": "jeep-guimba-cabanatuan",
+      "mapDetailsEnabled": true,
+      "serviceStops": [
+        {
+          "id": "baloc-guimba-origin-jeep-dropoff",
+          "townId": "baloc",
+          "name": "Baloc Drop-off",
+          "lat": 15.642027,
+          "lng": 120.886145,
+          "source": "User-confirmed shared southbound Baloc drop-off with San Jose to Cabanatuan"
+        },
+        {
+          "id": "talavera-guimba-origin-jeep-dropoff",
+          "townId": "talavera",
+          "name": "Talavera Drop-off",
+          "lat": 15.584677,
+          "lng": 120.918712,
+          "source": "User-confirmed shared southbound Talavera municipal drop-off with San Jose to Cabanatuan"
+        }
+      ],
+      "roadViaOverrides": {
+        "baloc": { "latitude": 15.641727, "longitude": 120.887023 }
+      },
+      "roadApproaches": {
+        "talavera": {
+          "before": [
+            { "latitude": 15.60784, "longitude": 120.921094 },
+            { "latitude": 15.58961, "longitude": 120.919571 }
+          ],
+          "after": [
+            { "latitude": 15.58201, "longitude": 120.918808 },
+            { "latitude": 15.58195, "longitude": 120.919708 }
+          ]
+        }
+      },
+      "terminalPoints": {
+        "cabanatuan": {
+          "name": "Cabanatuan Central Terminal",
+          "latitude": 15.4724483,
+          "longitude": 120.9692117,
+          "source": "https://www.openstreetmap.org/relation/3668238"
+        },
+        "guimba": {
+          "name": "Guimba",
+          "latitude": 15.659691,
+          "longitude": 120.764845,
+          "source": "User-provided Guimba endpoint: Point A for Guimba to Cabanatuan and Point B for Cabanatuan to Guimba"
+        }
+      },
       "type": "jeep",
       "label": "Guimba • Cabanatuan",
       "originId": "guimba",
@@ -415,6 +565,43 @@
     },
     {
       "id": "jeep-cabanatuan-guimba",
+      "mapDetailsEnabled": true,
+      "serviceStops": [
+        {
+          "id": "talavera-guimba-bound-jeep-dropoff",
+          "townId": "talavera",
+          "name": "Talavera Drop-off",
+          "lat": 15.584694,
+          "lng": 120.919742,
+          "source": "User-confirmed shared northbound Talavera drop-off with Cabanatuan to San Jose"
+        },
+        {
+          "id": "baloc-guimba-bound-jeep-dropoff",
+          "townId": "baloc",
+          "name": "Baloc Drop-off",
+          "lat": 15.642027,
+          "lng": 120.886145,
+          "source": "User-confirmed shared northbound Baloc drop-off with Cabanatuan to San Jose"
+        }
+      ],
+      "roadViaOverrides": {
+        "talavera": { "latitude": 15.60784, "longitude": 120.921094 },
+        "baloc": { "latitude": 15.641727, "longitude": 120.887023 }
+      },
+      "terminalPoints": {
+        "cabanatuan": {
+          "name": "Cabanatuan Central Terminal",
+          "latitude": 15.4724483,
+          "longitude": 120.9692117,
+          "source": "https://www.openstreetmap.org/relation/3668238"
+        },
+        "guimba": {
+          "name": "Guimba",
+          "latitude": 15.659691,
+          "longitude": 120.764845,
+          "source": "User-provided Guimba endpoint: Point A for Guimba to Cabanatuan and Point B for Cabanatuan to Guimba"
+        }
+      },
       "type": "jeep",
       "label": "Cabanatuan City • Guimba",
       "originId": "cabanatuan",
