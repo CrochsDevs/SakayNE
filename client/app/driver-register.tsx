@@ -8,6 +8,7 @@ import { Input } from '@/src/components/ui/Input';
 import DotLoader from '@/src/components/ui/DotLoader';
 import { signup } from '@/src/auth/auth.service';
 import { showError, showSuccess } from '@/src/utils/toast';
+import { isServiceAvailable } from '@/src/data/service-availability.mjs';
 
 const STEPS = ['Personal', 'Sasakyan', 'Verification'];
 const VEHICLE_TYPES = ['jeepney', 'bus'];
@@ -137,9 +138,9 @@ export default function DriverRegisterScreen() {
       <Text style={{ fontSize: 14, fontWeight: '600', color: C, marginBottom: 8 }}>{label}</Text>
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         {options.map((opt) => (
-          <TouchableOpacity key={opt} onPress={() => u(key, opt)}
-            style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, backgroundColor: selected === opt ? B : bg }}>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: selected === opt ? '#fff' : G }}>{opt}</Text>
+          <TouchableOpacity key={opt} accessibilityRole="button" accessibilityLabel={key === 'vehicleType' && !isServiceAvailable(opt) ? 'Bus registration, coming soon' : opt} accessibilityState={{ disabled: key === 'vehicleType' && !isServiceAvailable(opt) }} disabled={key === 'vehicleType' && !isServiceAvailable(opt)} onPress={() => u(key, opt)}
+            style={{ paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12, backgroundColor: selected === opt ? B : bg, opacity: key === 'vehicleType' && !isServiceAvailable(opt) ? 0.55 : 1 }}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: selected === opt ? '#fff' : G }}>{key === 'vehicleType' ? !isServiceAvailable(opt) ? 'Bus · Coming soon' : opt === 'bus' ? 'Bus' : 'Jeepney' : opt}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -222,7 +223,7 @@ export default function DriverRegisterScreen() {
 
             <View style={{ height: 12 }} />
             {sectionTitle('Account')}
-            <Input label="Gumawa ng Password *" placeholder="6+ characters" value={form.password} onChangeText={(v) => u('password', v)} secureTextEntry icon="lock-closed-outline" error={errors.password} />
+            <Input label="Gumawa ng Password *" placeholder="8+ characters" value={form.password} onChangeText={(v) => u('password', v)} secureTextEntry icon="lock-closed-outline" error={errors.password} />
             <Input label="Ulitin ang Password *" placeholder="I-ulit" value={form.confirmPassword} onChangeText={(v) => u('confirmPassword', v)} secureTextEntry icon="lock-closed-outline" error={errors.confirmPassword} />
 
             <View style={{ height: 20 }} />

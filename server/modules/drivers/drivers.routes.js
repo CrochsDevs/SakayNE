@@ -1,5 +1,9 @@
 import { Router } from "express";
 import { ObjectId } from "mongodb";
+import {
+  BUS_COMING_SOON,
+  isServiceAvailable,
+} from "../../../client/src/data/service-availability.mjs";
 import { getDB, transaction } from "../../config/db.js";
 import { asyncRoute, requireValue } from "../../shared/errors.js";
 import { matchJourneys } from "../../shared/journeys.js";
@@ -55,7 +59,7 @@ router.get(
       .toArray();
     res.json({
       drivers: drivers
-        .filter((d) => d.routeId && ["bus", "jeepney"].includes(d.vehicleType))
+        .filter((d) => d.routeId && isServiceAvailable(d.vehicleType))
         .map(publicDriver),
     });
   }),
@@ -72,7 +76,9 @@ router.get(
       "Reserve 1 to 10 seats",
     );
     const seats = Number(req.query.seats || 1);
-    const matches = matchJourneys({ fromId, toId, seats, type });
+    const matches = matchJourneys({ fromId, toId, seats, type }).filter(
+      (match) => isServiceAvailable(match.type),
+    );
     await expireReservations();
     const drivers = await getDB()
       .collection("drivers")
@@ -149,6 +155,11 @@ router.put(
       const route = routes.find((r) => r.id === routeId);
       if (isAvailable) {
         requireValue(
+          isServiceAvailable(driver.vehicleType),
+          BUS_COMING_SOON,
+          409,
+        );
+        requireValue(
           route &&
             route.type === (driver.vehicleType === "bus" ? "bus" : "jeep") &&
             ["bus", "jeepney"].includes(driver.vehicleType),
@@ -168,11 +179,22 @@ router.put(
           409,
         );
       }
-      if (isAvailable && (routeId !== driver.routeId || capacity !== driver.capacity)) {
-        const activeRide = await db.collection("rides").findOne({
-          driverId: driver._id.toString(), status: { $in: activeStatuses },
-        }, { session, projection: { _id: 1 } });
-        requireValue(!activeRide, "Finish existing bookings before changing route or capacity", 409);
+      if (
+        isAvailable &&
+        (routeId !== driver.routeId || capacity !== driver.capacity)
+      ) {
+        const activeRide = await db.collection("rides").findOne(
+          {
+            driverId: driver._id.toString(),
+            status: { $in: activeStatuses },
+          },
+          { session, projection: { _id: 1 } },
+        );
+        requireValue(
+          !activeRide,
+          "Finish existing bookings before changing route or capacity",
+          409,
+        );
       }
       const update = {
         isAvailable,
@@ -180,16 +202,14 @@ router.put(
         ...(isAvailable ? { routeId, capacity } : {}),
       };
       // CAS prevents an availability change racing with a seat reservation.
-      const result = await db
-        .collection("drivers")
-        .updateOne(
-          {
-            _id: driver._id,
-            reservedSeats: driver.reservedSeats ?? { $exists: false },
-          },
-          { $set: update },
-          { session },
-        );
+      const result = await db.collection("drivers").updateOne(
+        {
+          _id: driver._id,
+          reservedSeats: driver.reservedSeats ?? { $exists: false },
+        },
+        { $set: update },
+        { session },
+      );
       requireValue(result.matchedCount, "Bookings changed. Please retry", 409);
       return { ...driver, ...update, id: driver._id.toString() };
     });

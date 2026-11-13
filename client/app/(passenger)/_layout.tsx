@@ -13,7 +13,7 @@ export default function PassengerLayout() {
   const { colors } = useTheme();
   const translate = useInterfaceText();
   const ready = useSyncExternalStore(subscribeToHydration, clientSnapshot, serverSnapshot);
-  const screenOptions = useAppTabBar();
+  const screenOptions = useAppTabBar(6);
 
   if (!ready) return <View style={{ flex: 1, backgroundColor: colors.background, justifyContent: 'center' }}><ActivityIndicator color={colors.primaryLight} /></View>;
 
@@ -35,6 +35,9 @@ export default function PassengerLayout() {
         <Tabs.Screen name="wallet" options={{
           title: translate('Wallet'),
           tabBarIcon: ({ color, focused }) => <AppTabIcon name={focused ? 'wallet' : 'wallet-outline'} focused={focused} color={color} />,
+        }} />
+        <Tabs.Screen name="community" options={{ title: 'Community', tabBarAccessibilityLabel: 'Community, coming soon',
+          tabBarIcon: ({ color, focused }) => <AppTabIcon name={focused ? 'people' : 'people-outline'} focused={focused} color={color} />,
         }} />
         <Tabs.Screen name="settings" options={{
           title: translate('Settings'),

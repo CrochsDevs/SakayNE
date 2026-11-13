@@ -3,6 +3,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { chromium, expect } from '@playwright/test';
+import { isServiceAvailable } from '../../client/src/data/service-availability.mjs';
 
 // Isolated API fixtures; never connects to the application database.
 const dist = fileURLToPath(new URL('../../client/dist', import.meta.url));
@@ -46,7 +47,14 @@ try {
     const response = await page.goto(`${webBase}/home`, { timeout: 300000, waitUntil: 'domcontentloaded' });
     assert.ok(!response.headers()['content-security-policy']?.includes("script-src 'none'"));
     assert.equal(await page.locator('meta[http-equiv="Content-Security-Policy"][content*="script-src \'none\'"]').count(), 0);
-    if (type === 'bus') await page.getByRole('button', { name: 'Bus', exact: true }).click();
+    if (!isServiceAvailable(type)) {
+      await expect(page.getByRole('button', { name: 'View on map: Test Driver', exact: true })).toHaveCount(0);
+      await page.getByRole('button', { name: 'Bus, coming soon', exact: true }).click();
+      await expect(page.getByText('Bus service', { exact: true })).toBeVisible();
+      await expect(page.getByText('Coming soon', { exact: true }).last()).toBeVisible();
+      assert.deepEqual(errors, []); assert.deepEqual(warnings, []);
+      await context.close(); continue;
+    }
     await expect(page.getByRole('button', { name: 'This vehicle is full', exact: true })).toBeDisabled();
     await page.getByRole('button', { name: 'View on map: Test Driver', exact: true }).click();
     await expect(page.getByText('Waiting for driver GPS.', { exact: true })).toBeVisible();
@@ -130,7 +138,7 @@ try {
     assert.deepEqual(warnings, []);
     await context.close();
   }
-  console.log('PASS: passenger and driver GPS, upright jeepney/bus icons, permission retry, fullscreen, missing/stale GPS, connection recovery, offline marker removal and clean browser console.');
+  console.log('PASS: jeepney GPS, permission retry, fullscreen, missing/stale GPS, connection recovery, offline marker removal, bus coming soon and clean browser console.');
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));

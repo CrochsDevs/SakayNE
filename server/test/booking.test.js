@@ -468,35 +468,26 @@ test("online drivers can switch route direction without going offline when booki
   }
 });
 
-test("bus booking uses the selected intermediate pickup and final destination", async () => {
-  const busRoute = "bus-cabanatuan-manila";
-  await getDB()
-    .collection("drivers")
-    .updateOne(
-      { _id: driverId },
-      { $set: { vehicleType: "bus", routeId: busRoute, capacity: 45 } },
-    );
-  const ride = await booking({
-    routeId: busRoute,
-    fromId: "gapan",
-    toId: "manila",
-    seats: 4,
-  });
-  assert.equal(ride.fromName, "Gapan City");
-  assert.equal(ride.toName, "Manila");
-  assert.equal(ride.minutes, 140);
-  assert.equal((await api('/drivers')).body.drivers[0].seats, 41);
-  for (const status of ['accepted', 'arrived', 'ongoing', 'completed']) {
-    const result = await transition(ride, status, 'driver', ride.boardingCode);
-    assert.equal(result.status, 200, JSON.stringify(result.body));
-  }
-  assert.equal((await api('/drivers')).body.drivers[0].seats, 45);
-  assert.equal((await api('/rides/active')).body.ride, null);
-  assert.equal((await api('/rides')).body.rides[0].paymentStatus, 'paid');
-  assert.equal((await api('/drivers/earnings', 'driver')).body.total, ride.fare);
+test("bus booking is coming soon while existing bus trips can still complete", async () => {
+  const busRoute = 'bus-cabanatuan-manila';
+  await getDB().collection('drivers').updateOne({ _id: driverId }, { $set: { vehicleType: 'bus', routeId: busRoute, capacity: 45 } });
+  const blocked = await api('/rides', 'passenger', 'POST', input({ routeId: busRoute, fromId: 'gapan', toId: 'manila', seats: 4 }));
+  assert.equal(blocked.status, 409); assert.match(blocked.body.error, /coming soon/i);
+  const online = await api('/drivers/availability', 'driver', 'PUT', { isAvailable: true, routeId: busRoute, capacity: 45 });
+  assert.equal(online.status, 409); assert.match(online.body.error, /coming soon/i);
+  assert.equal((await api('/drivers/journeys?fromId=gapan&toId=manila&type=bus')).body.journeys.length, 0);
+  assert.equal(await getDB().collection('rides').countDocuments({}), 0);
+  assert.equal((await getDB().collection('drivers').findOne({ _id: driverId })).reservedSeats, 0);
+  const ride = { _id: new ObjectId(), passengerEmail: 'passenger@example.test', driverEmail: 'driver@example.test', driverId: driverId.toString(), driverName: 'Test Driver', routeId: busRoute, fromId: 'gapan', toId: 'manila', fromName: 'Gapan City', toName: 'Manila', type: 'bus', seats: 4, fare: 400, status: 'ongoing', occupancyStatus: 'onboard', paymentStatus: 'unpaid', createdAt: new Date().toISOString() };
+  await getDB().collection('rides').insertOne(ride);
+  await getDB().collection('drivers').updateOne({ _id: driverId }, { $set: { reservedSeats: 4 } });
+  const finished = await api('/rides/' + ride._id + '/status', 'driver', 'PATCH', { status: 'completed' });
+  assert.equal(finished.status, 200); assert.equal(finished.body.ride.paymentStatus, 'paid');
+  assert.equal((await api('/rides')).body.rides[0].type, 'bus');
+  assert.equal((await getDB().collection('drivers').findOne({ _id: driverId })).reservedSeats, 0);
 });
 
-test('passengers can view online jeepney and bus GPS on the fleet map, with no offline locations exposed', async () => {
+test('fleet exposes online jeepney GPS and hides coming-soon buses and offline locations', async () => {
   assert.equal((await api('/drivers', 'anonymous')).status, 401);
   for (const [vehicleType, selectedRoute, type] of [
     ['jeepney', routeId, 'jeep'], ['bus', 'bus-cabanatuan-manila', 'bus'],
@@ -504,6 +495,7 @@ test('passengers can view online jeepney and bus GPS on the fleet map, with no o
     await getDB().collection('drivers').updateOne({ _id: driverId }, { $set: {
       vehicleType, routeId: selectedRoute, isAvailable: true, onlineUntil: new Date(Date.now() + 90000),
     }, $unset: { location: '' } });
+    if (vehicleType === 'bus') { assert.equal((await api('/drivers')).body.drivers.length, 0); continue; }
     assert.equal((await api('/drivers')).body.drivers[0].location, null);
     const published = await api('/drivers/location', 'driver', 'POST', { latitude: 15.487, longitude: 120.974, accuracy: 4 });
     assert.equal(published.status, 200);
@@ -770,7 +762,7 @@ test("registration confirmation creates a complete driver profile atomically and
         role: "driver",
         licenseNo: "N01TEST",
         plateNo: "NEW123",
-        vehicleType: "bus",
+        vehicleType: "jeepney",
         application: { route: "Cabanatuan - Manila", seatingCapacity: "45" },
         documents: {},
       },
@@ -828,7 +820,7 @@ test('driver signup sends a usable OTP, uploads documents concurrently, verifies
     const documents = Object.fromEntries(['licenseFront', 'licenseBack', 'vehicleReg', 'selfie'].map(key => [key, { base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aN1cAAAAASUVORK5CYII=', mimeType: 'image/png' }]));
     assert.equal((await api('/auth/signup', 'anonymous', 'POST', {
       fullName: 'OTP Driver', email: email.toUpperCase(), phone: '09999999999', password: 'TestPassword123', role: 'driver',
-      licenseNo: 'N01TEST', plateNo: 'OTP123', vehicleType: 'bus', documents,
+      licenseNo: 'N01TEST', plateNo: 'OTP123', vehicleType: 'jeepney', documents,
     })).status, 200);
     const db = getDB(), original = await db.collection('otps').findOne({ email });
     assert.match(smtp.messages[0], new RegExp(original.otp));

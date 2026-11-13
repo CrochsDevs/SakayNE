@@ -17,10 +17,11 @@ let browser;
 try {
   const edge = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
   browser = await chromium.launch(existsSync(edge) ? { executablePath: edge, headless: true } : { headless: true });
-  const page = await browser.newPage({ viewport: { width: 360, height: 740 } });
+  const page = await browser.newPage({ viewport: { width: 360, height: 740 }, permissions: ['geolocation'], geolocation: { latitude: 15.487, longitude: 120.974, accuracy: 5 } });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => {
+    if (window.top !== window) return;
     localStorage.setItem('@sakayne_auth', JSON.stringify({ id: 'fixture', fullName: 'Test Passenger', email: 'test@example.test', role: 'passenger' }));
     localStorage.setItem('@sakayne_token', 'ui-fixture');
   });
@@ -42,15 +43,16 @@ try {
   });
   await page.goto(`http://127.0.0.1:${server.address().port}/home`);
   await page.getByRole('button', { name: 'Book jeepney with Test Driver' }).click();
-  await expect(page.getByRole('button', { name: 'Next: seats and fare' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Next: choose seats' })).toBeDisabled();
+  await expect(page.getByText('Pickup area: Cabanatuan City', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: /Get off:/ }).click();
   await page.getByRole('button', { name: /Palayan City/ }).click();
   await page.screenshot({ path: artifacts + '/simple-booking-places.png', fullPage: true });
-  await page.getByRole('button', { name: 'Next: seats and fare' }).click();
+  await page.getByRole('button', { name: 'Next: choose seats' }).click();
   await expect(page.getByText('2. Choose your trip', { exact: true })).not.toBeVisible();
   await expect(page.getByRole('button', { name: 'Remove seat' })).toBeDisabled();
   await page.getByRole('button', { name: 'Add seat' }).click();
-  await expect(page.getByText('2 seats', { exact: true })).toBeVisible();
+  await expect(page.getByText('2', { exact: true })).toBeVisible();
   await expect(page.locator('iframe')).toHaveCount(0);
   const confirm = page.getByRole('button', { name: 'Confirm Booking', exact: true });
   await expect(confirm).toBeEnabled();

@@ -30,6 +30,7 @@ import { reversePlace } from '@/src/ride/maps.service';
 
 import { getAvailableDrivers } from '@/src/ride/driver.service';
 import { usePolling } from '@/src/ride/usePolling';
+import { isServiceAvailable } from '@/src/data/service-availability.mjs';
 
 const TABS = [
   { id: 'bus' as const, label: 'Bus' },
@@ -79,7 +80,7 @@ export default function DashboardHome() {
   }, []));
 
   const fleet = usePolling(getAvailableDrivers, [] as SakayDriver[]);
-  const drivers = fleet.data.filter(d => d.type === activeTab);
+  const drivers = fleet.data.filter(d => d.type === activeTab && isServiceAvailable(d.type));
   const [query, setQuery] = useState('');
   const filteredDrivers = drivers.filter(d => (getRoute(d.routeId)?.label + ' ' + d.name).toLowerCase().includes(query.toLowerCase()));
 
@@ -262,7 +263,7 @@ export default function DashboardHome() {
             {TABS.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
-                <TouchableOpacity key={tab.id} accessibilityRole="button" accessibilityLabel={tab.label} accessibilityState={{ selected: isActive }} onPress={() => setActiveTab(tab.id)} activeOpacity={0.8}
+                <TouchableOpacity key={tab.id} accessibilityRole="button" accessibilityLabel={isServiceAvailable(tab.id) ? tab.label : 'Bus, coming soon'} accessibilityState={{ selected: isActive }} onPress={() => isServiceAvailable(tab.id) ? setActiveTab(tab.id) : router.push('/bus-coming-soon')} activeOpacity={0.8}
                   style={[styles.vehicleTab, { borderColor: isActive ? Brand.teal : 'transparent', backgroundColor: isActive ? Brand.teal : tab.id === 'bus' ? colors.coralSurface : colors.mintSurface }]}>
                   <View style={styles.vehicleTabTop}>
                     <View style={{ width: 54, height: 45, borderRadius: 15, backgroundColor: isActive ? 'rgba(255,255,255,0.15)' : isDark ? (tab.id === 'bus' ? '#75380F' : '#245842') : tab.id === 'bus' ? '#F9BA9E' : '#BDE8D7', alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '-6deg' }] }}>
@@ -272,7 +273,7 @@ export default function DashboardHome() {
                     <Ionicons name={isActive ? 'checkmark-circle' : 'arrow-forward'} size={19} color={isActive ? Brand.sunshine : textMain} />
                   </View>
                   <Text style={{ fontSize: 18, fontWeight: '800', color: isActive ? '#FFFFFF' : textMain, marginTop: 12 }}>{tab.label}</Text>
-                  <Text style={{ fontSize: 11, color: isActive ? '#E0E0E0' : textMuted, marginTop: 4 }}>{tab.id === 'bus' ? translate("Go a little further") : translate("The local favorite")}</Text>
+                  <Text style={{ fontSize: 11, color: isActive ? '#E0E0E0' : textMuted, marginTop: 4 }}>{!isServiceAvailable(tab.id) ? 'Coming soon' : translate("The local favorite")}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -301,9 +302,9 @@ export default function DashboardHome() {
               </View>
               <Text style={[styles.emptyTitle, { color: textMain }]}>{fleet.loading ? translate("Finding your next ride") : fleet.error ? translate("Let’s reconnect") : query ? translate("No matching rides") : translate("No rides just yet")}</Text>
               <Text style={[styles.emptyDescription, { color: textMuted }]}>{fleet.loading ? translate("Checking for available vehicles.") : fleet.error ? translate("We couldn’t load available rides. Check your connection and try again.") : query ? translate("Try another route or driver name to find a match.") : translate("No {{vehicle}} are online right now. Check the other vehicle type or come back soon.", { vehicle: translate(activeTab === "bus" ? "buses" : "jeepneys") })}</Text>
-              {!fleet.loading && <TouchableOpacity accessibilityRole="button" accessibilityLabel={fleet.error ? translate("Try again") : query ? translate("Clear search") : translate(activeTab === "bus" ? "Check jeepneys" : "Check buses")} onPress={fleet.error ? fleet.refresh : query ? () => setQuery('') : () => setActiveTab(activeTab === 'bus' ? 'jeep' : 'bus')}
+              {!fleet.loading && <TouchableOpacity accessibilityRole="button" accessibilityLabel={fleet.error ? translate("Try again") : query ? translate("Clear search") : 'Plan a trip'} onPress={fleet.error ? fleet.refresh : query ? () => setQuery('') : () => router.push('/journey-search')}
                 style={[styles.emptyAction, { backgroundColor: fieldBg }]}>
-                <Text style={{ color: accentColor, fontSize: 13, fontWeight: '700' }}>{fleet.error ? translate("Try again") : query ? translate("Clear search") : translate(activeTab === "bus" ? "Check jeepneys" : "Check buses")}</Text>
+                <Text style={{ color: accentColor, fontSize: 13, fontWeight: '700' }}>{fleet.error ? translate("Try again") : query ? translate("Clear search") : 'Plan a trip'}</Text>
                 <Ionicons name={fleet.error ? 'refresh' : 'arrow-forward'} size={16} color={accentColor} />
               </TouchableOpacity>}
             </View>

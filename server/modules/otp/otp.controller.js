@@ -1,4 +1,5 @@
-import { sendError } from '../../shared/errors.js';
+import { sendError, requireValue } from '../../shared/errors.js';
+import { BUS_SERVICE_ENABLED, BUS_COMING_SOON } from '../../../client/src/data/service-availability.mjs';
 import { sendEmail } from "../../config/mail.js";
 import { otpTemplate } from "../../config/email-template.js";
 import * as OTPModel from "./otp.model.js";
@@ -13,7 +14,9 @@ export async function sendOTP(req, res) {
   try {
     const email = String(req.body.email || '').trim().toLowerCase();
     if (!email) return res.status(400).json({ error: "Email is required" });
-    if (!await findPending(email)) return res.status(400).json({ error: 'No pending registration found' });
+    const pending = await findPending(email);
+    if (!pending) return res.status(400).json({ error: 'No pending registration found' });
+    requireValue(!(pending.data?.role === 'driver' && pending.data?.vehicleType === 'bus' && !BUS_SERVICE_ENABLED), BUS_COMING_SOON, 409);
 
     const otp = generateOTP();
     await OTPModel.saveOTP(email, otp);

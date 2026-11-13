@@ -19,7 +19,9 @@
     "test:map-stack:browser": "node scripts/map-stack-browser-smoke.js",
     "test:map-layers:browser": "node scripts/map-layers-browser-smoke.js",
     "test:route-switch:browser": "node scripts/route-switch-browser-smoke.js",
-    "test:booking-details:browser": "node scripts/booking-details-browser-smoke.js"
+    "test:booking-details:browser": "node scripts/booking-details-browser-smoke.js",
+    "test:reports:browser": "node scripts/reports-browser-smoke.js",
+    "test:coming-soon:browser": "node scripts/coming-soon-browser-smoke.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

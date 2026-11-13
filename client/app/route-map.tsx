@@ -15,6 +15,8 @@ import { bookRide } from '@/src/ride/ride.store';
 import { getAvailableDrivers } from '@/src/ride/driver.service';
 import { usePolling } from '@/src/ride/usePolling';
 import type { PickupLocation } from '@/src/ride/location';
+import FeatureComingSoon from '@/src/components/FeatureComingSoon';
+import { isServiceAvailable, BUS_COMING_SOON } from '@/src/data/service-availability.mjs';
 import {
   TOWNS,
   SakayDriver,
@@ -91,6 +93,7 @@ export default function RouteMapScreen() {
     finally { setBooking(false); }
   };
   if (!ready) return <SafeAreaView style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color="#087F8C" /></SafeAreaView>;
+  if (route && !isServiceAvailable(route.type)) return <FeatureComingSoon title="Bus service" icon="bus-outline" description={BUS_COMING_SOON} />;
   if (!route || segment.length < 2 || (gpsPickupRequested && !pickupLocation)) return <SafeAreaView style={{ flex: 1, padding: 24 }}><Text>{translate("Invalid route or stops. Please choose a ride again.")}</Text><TouchableOpacity onPress={() => router.back()}><Text>{translate("Go back")}</Text></TouchableOpacity></SafeAreaView>;
 
   return <SafeAreaView style={{ flex: 1, backgroundColor: bg }}>

@@ -13,15 +13,18 @@ import ridesRoutes from "../modules/rides/rides.routes.js";
 import tokensRoutes from "../modules/tokens/tokens.routes.js";
 import usersRoutes from "../modules/users/users.routes.js";
 import mapsRoutes from "../modules/maps/maps.routes.js";
+import reportsRoutes, { adminReports } from '../modules/reports/reports.routes.js';
 import { rateLimit } from "../shared/rate-limit.js";
 import { authenticate } from "../shared/session.js";
 import { corsOptions, securityHeaders } from '../shared/security.js';
+import { activityLog } from '../shared/activity-log.js';
 
 const app = express();
 const authLimiter = rateLimit(30);
 
 app.disable('x-powered-by');
 app.set('query parser', 'simple');
+app.use(activityLog);
 app.use(securityHeaders);
 app.use(cors(corsOptions));
 const smallJson = express.json({ limit: '64kb', inflate: false });
@@ -56,6 +59,8 @@ app.use("/api/maps", mapsRoutes);
 app.use("/api/drivers", driversRoutes);
 app.use("/api/admin/drivers", adminDrivers);
 app.use("/api/admin/operations", operationsRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/admin/reports', adminReports);
 app.use("/api", (req, res) =>
   res.status(404).json({ error: "Endpoint not found" }),
 );

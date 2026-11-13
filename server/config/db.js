@@ -63,6 +63,9 @@ export async function ensureIndexes(database) {
   await database.collection('notification_settings').createIndex({ email: 1 });
   await database.collection('token_history').createIndex({ email: 1, createdAt: -1 });
   await database.collection('audit_logs').createIndex({ targetId: 1, createdAt: -1 });
+  await database.collection('driver_reports').createIndex({ passengerEmail: 1, rideId: 1 }, { unique: true });
+  await database.collection('driver_reports').createIndex({ passengerEmail: 1, _id: -1 });
+  await database.collection('driver_reports').createIndex({ status: 1, _id: -1 });
   await database.collection('ride_messages').createIndex({ rideId: 1, createdAt: -1 });
   await database.collection('otps').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
   await database.collection('otps').createIndex({ email: 1, purpose: 1 });

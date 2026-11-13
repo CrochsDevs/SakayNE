@@ -54,6 +54,14 @@
         {
           "locationWhenInUsePermission": "Allow Sakay to share your driver location with passengers during bookings."
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "useLegacyPackaging": true
+          }
+        }
       ]
     ],
     "experiments": {

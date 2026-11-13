@@ -8,8 +8,13 @@ import bcrypt from 'bcrypt';
 import { ObjectId } from 'mongodb';
 import app from '../src/app.js';
 import { connectDB, closeDB, getDB } from '../config/db.js';
+import { BUS_SERVICE_ENABLED } from '../../client/src/data/service-availability.mjs';
 
 const bus = process.argv.includes('--bus');
+if (bus && !BUS_SERVICE_ENABLED) {
+  await import('./coming-soon-browser-smoke.js');
+  process.exit(0);
+}
 const vehicleType = bus ? 'bus' : 'jeepney';
 const destination = bus ? 'Manila' : 'Palayan City';
 const artifacts = fileURLToPath(new URL(bus ? '../../artifacts/bus' : '../../artifacts/jeepney', import.meta.url));

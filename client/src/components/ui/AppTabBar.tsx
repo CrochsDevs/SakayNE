@@ -5,10 +5,12 @@ import { Text, View, type ColorValue, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/src/store/theme';
 
-export function useAppTabBar() {
+export function useAppTabBar(tabCount = 5) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const { fontScale } = useWindowDimensions();
+  const { fontScale, width } = useWindowDimensions();
+  const compact = tabCount > 5 && width < 420;
+  const labelWidth = compact ? Math.floor((width - insets.left - insets.right) / tabCount) - 2 : undefined;
   const bottomPadding = Math.max(insets.bottom, 8);
   const labelExtraHeight = Math.ceil(16 * (Math.min(fontScale, 1.2) - 1));
 
@@ -31,7 +33,7 @@ export function useAppTabBar() {
     },
     tabBarItemStyle: { minWidth: 0, paddingHorizontal: 0, paddingVertical: 0 },
     tabBarIconStyle: { width: 52, height: 34, flexShrink: 0 },
-    tabBarLabel: ({ color, focused, children }) => <Text numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ color, fontSize: 12, lineHeight: 16, minHeight: 16, flexShrink: 0, fontWeight: focused ? '700' : '600', marginTop: 4, textAlign: 'center', letterSpacing: -0.2 }}>{children}</Text>,
+    tabBarLabel: ({ color, focused, children }) => <Text numberOfLines={1} maxFontSizeMultiplier={1.2} style={{ color, width: labelWidth, maxWidth: labelWidth, fontSize: compact ? children === 'Community' && width < 350 ? 9.5 : 10 : 12, lineHeight: 16, minHeight: 16, flexShrink: 0, fontWeight: focused ? '700' : '600', marginTop: 4, textAlign: 'center', letterSpacing: -0.2 }}>{children}</Text>,
   } satisfies NonNullable<ComponentProps<typeof Tabs>['screenOptions']>;
 }
 

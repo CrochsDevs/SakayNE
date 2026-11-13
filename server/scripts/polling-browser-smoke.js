@@ -2,6 +2,12 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chromium, expect } from '@playwright/test';
+import express from 'express';
+
+const web = express(); web.use(express.static(fileURLToPath(new URL('../../client/dist', import.meta.url)), { extensions: ['html'] }));
+web.get('*', (_req, res) => res.sendFile(fileURLToPath(new URL('../../client/dist/index.html', import.meta.url))));
+const server = web.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
+const webBase = process.env.BROWSER_WEB_URL || `http://127.0.0.1:${server.address().port}`;
 
 const browser = await chromium.launch({ ...(existsSync('C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe') ? { executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe' } : {}), headless: true, args: ['--enable-unsafe-swiftshader'] });
 try {
@@ -27,7 +33,7 @@ try {
     await route.fulfill({ json }).catch(() => {});
   });
   const page = await context.newPage(), errors = []; page.on('pageerror', error => errors.push(error.message));
-  await page.goto((process.env.BROWSER_WEB_URL || 'http://localhost:8081') + '/(driver)', { waitUntil: 'domcontentloaded', timeout: 180000 });
+  await page.goto(webBase + '/(driver)', { waitUntil: 'domcontentloaded', timeout: 180000 });
   await expect(page.getByRole('button', { name: 'Go offline', exact: true })).toBeVisible({ timeout: 45000 });
   await expect.poll(() => uploads, { timeout: 30000 }).toBeGreaterThanOrEqual(2);
   assert.equal(peakUploads, 1, 'Slow GPS uploads must never overlap');
@@ -46,4 +52,4 @@ try {
   const report = { slowUploadMs: 6500, peakConcurrentGpsUploads: peakUploads, hiddenObservationMs: 7500, hiddenRequests: 0, resumed: true, errors, counts };
   const dir = fileURLToPath(new URL('../../artifacts', import.meta.url)); mkdirSync(dir, { recursive: true }); writeFileSync(dir + '/polling-browser.json', JSON.stringify(report, null, 2));
   console.log('PASS: slow GPS uploads stay sequential, hidden tabs stop API polling, foreground resumes and no browser errors');
-} finally { await browser.close(); }
+} finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }

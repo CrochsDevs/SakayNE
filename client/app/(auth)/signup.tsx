@@ -97,7 +97,7 @@ export default function SignupScreen() {
               <Ionicons name="bus-outline" size={moderateScale(24)} color={colors.primaryLight} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: moderateScale(15), fontWeight: '700', color: colors.primaryLight }}>Register as driver</Text>
-                <Text style={{ fontSize: moderateScale(13), color: colors.textSecondary, marginTop: verticalScale(4) }}>Apply to drive a bus or jeepney</Text>
+                <Text style={{ fontSize: moderateScale(13), color: colors.textSecondary, marginTop: verticalScale(4) }}>Apply to drive a jeepney. Bus registration coming soon.</Text>
               </View>
               <Ionicons name="chevron-forward" size={moderateScale(20)} color={colors.primaryLight} />
             </TouchableOpacity>

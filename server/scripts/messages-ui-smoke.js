@@ -49,7 +49,7 @@ try {
     const page = await context.newPage();
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(base + (role === 'driver' ? '/(driver)' : '/home'));
-    const icon = page.getByRole('button', { name: 'Messages', exact: true });
+    const icon = page.getByRole('tab', { name: /Messages/ });
     await expect(icon).toBeVisible();
     await expect(page.getByRole('button', { name: 'Notifications', exact: true })).toBeVisible();
     await icon.click();
@@ -86,7 +86,7 @@ try {
   await expect(passenger.getByText('No conversations yet', { exact: true })).toBeVisible();
   assert.equal(messages.length, 2);
   assert.deepEqual(errors, []);
-  console.log('PASS: both header icons, booking-specific chat, passenger/driver replies, closed chat, and empty inbox.');
+  console.log('PASS: Messages navigation and notifications, booking-specific chat, passenger/driver replies, closed chat, and empty inbox.');
 } finally {
   await browser?.close();
   await new Promise(resolve => server.close(resolve));

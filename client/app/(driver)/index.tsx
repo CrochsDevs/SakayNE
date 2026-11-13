@@ -14,6 +14,8 @@ import { getRides, changeRideStatus, isActiveRide } from '@/src/ride/ride.store'
 import { usePolling } from '@/src/ride/usePolling';
 import { ROUTES, getRoute, getServiceStops, getServiceMapStops, getRoadWaypoints, isRouteMapEnabled, getTerminalMapStops, getTownName } from '@/src/data/sakay';
 import { showError } from '@/src/utils/toast';
+import FeatureComingSoon from '@/src/components/FeatureComingSoon';
+import { BUS_SERVICE_ENABLED, BUS_COMING_SOON } from '@/src/data/service-availability.mjs';
 
 export default function DriverDashboard() {
   const { colors, isDark, brand } = useTheme();
@@ -79,6 +81,7 @@ export default function DriverDashboard() {
     });
   };
   const availabilityColor = online ? '#B42318' : '#15803D';
+  if (driver?.vehicleType === 'bus' && !BUS_SERVICE_ENABLED) return <FeatureComingSoon title="Bus service" icon="bus-outline" description={BUS_COMING_SOON} homeRoute="/(driver)/driver-trips" actionLabel="View existing trips" />;
 
   const availableSeats = driver?.availableSeats ?? Math.max(0, defaultCapacity - (driver?.reservedSeats || 0));
   return <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: colors.background }}>

@@ -49,7 +49,7 @@ try {
   async function signup(email, driver = false) {
     const response = await fetch(apiBase + '/api/auth/signup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
       fullName: 'OTP Browser Test', email, phone: '09999999999', password: 'TestPassword123', role: driver ? 'driver' : 'passenger',
-      ...(driver ? { licenseNo: 'TEST01', plateNo: 'OTP123', vehicleType: 'bus', documents: Object.fromEntries(['licenseFront', 'licenseBack', 'vehicleReg', 'selfie'].map(key => [key, { base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aN1cAAAAASUVORK5CYII=', mimeType: 'image/png' }])) } : {}),
+      ...(driver ? { licenseNo: 'TEST01', plateNo: 'OTP123', vehicleType: 'jeepney', documents: Object.fromEntries(['licenseFront', 'licenseBack', 'vehicleReg', 'selfie'].map(key => [key, { base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aN1cAAAAASUVORK5CYII=', mimeType: 'image/png' }])) } : {}),
     }) });
     assert.equal(response.status, 200, await response.text());
     const otp = await db.collection('otps').findOne({ email });
@@ -83,6 +83,55 @@ try {
   await page.getByText('pending', { exact: true }).waitFor();
   await page.screenshot({ path: artifacts + '/otp-driver-pending.png', fullPage: true });
 
+  // Exercise the passenger forms, not just the API helper used by OTP fixtures.
+  const formContext = await browser.newContext({ viewport: { width: 393, height: 852 } });
+  await formContext.addInitScript(() => { if (window.top === window) localStorage.setItem('@sakayne_language', 'en'); });
+  await formContext.route('**/api/**', async route => {
+    const request = route.request(), url = new URL(request.url());
+    const response = await fetch(apiBase + url.pathname + url.search, { method: request.method(), headers: { 'Content-Type': 'application/json', ...(request.headers().authorization ? { Authorization: request.headers().authorization } : {}) }, ...(request.postData() ? { body: request.postData() } : {}) });
+    await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
+  });
+  const form = await formContext.newPage(); form.on('pageerror', error => errors.push(error.message));
+  const formEmail = 'passenger-form@example.test';
+  await form.goto(webBase + '/signup');
+  await form.getByRole('button', { name: 'Create passenger account', exact: true }).click();
+  await expect(form.getByText('Full name is required', { exact: true })).toBeVisible();
+  for (const [placeholder, value] of [['Juan Dela Cruz', 'Form Passenger'], ['juan@email.com', formEmail], ['+63 9XX XXX XXXX', '09123456789'], ['Create a password', 'TestPassword123'], ['Confirm your password', 'TestPassword123']]) await form.getByPlaceholder(placeholder, { exact: true }).fill(value);
+  await form.getByText('I agree to the', { exact: false }).click();
+  await form.getByRole('button', { name: 'Create passenger account', exact: true }).click();
+  await form.getByLabel('Email verification code').waitFor();
+  const formOtp = await db.collection('otps').findOne({ email: formEmail, purpose: 'registration' });
+  assert.ok(smtp.messages.at(-1).includes(formOtp.otp));
+  await form.getByLabel('Email verification code').fill(formOtp.otp);
+  await form.getByRole('button', { name: 'Verify email', exact: true }).click();
+  await form.getByText('Sign In', { exact: true }).filter({ visible: true }).waitFor();
+  await form.locator('input:visible').nth(1).fill('TestPassword123');
+  await form.getByText('Sign In', { exact: true }).filter({ visible: true }).click();
+  await form.getByText('Form Passenger', { exact: true }).filter({ visible: true }).waitFor();
+  await form.goto(webBase + '/logout');
+  await form.waitForURL('**/welcome');
+  assert.equal(await form.evaluate(() => localStorage.getItem('@sakayne_token')), null);
+  await form.goto(webBase + '/forgot-password');
+  await form.getByPlaceholder('Enter your email', { exact: true }).fill(formEmail);
+  await form.getByText('Send Code', { exact: true }).click();
+  await form.getByPlaceholder('000000', { exact: true }).waitFor();
+  const resetOtp = await db.collection('otps').findOne({ email: formEmail, purpose: 'reset' });
+  assert.ok(smtp.messages.at(-1).includes(resetOtp.otp));
+  await form.getByPlaceholder('000000', { exact: true }).fill(resetOtp.otp);
+  await form.getByText('Next', { exact: true }).click();
+  await form.getByPlaceholder('At least 8 characters', { exact: true }).fill('ChangedPassword123');
+  await form.getByText('Reset Password', { exact: true }).click();
+  await form.getByText('Sign In', { exact: true }).filter({ visible: true }).waitFor();
+  await form.locator('input:visible').nth(0).fill(formEmail);
+  await form.locator('input:visible').nth(1).fill('TestPassword123');
+  await form.getByText('Sign In', { exact: true }).filter({ visible: true }).click();
+  await expect(form.getByText('Invalid credentials', { exact: true }).first()).toBeVisible();
+  await form.locator('input:visible').nth(1).fill('ChangedPassword123');
+  await form.getByText('Sign In', { exact: true }).filter({ visible: true }).click();
+  await form.getByText('Form Passenger', { exact: true }).filter({ visible: true }).waitFor();
+  assert.equal(await db.collection('drivers').countDocuments({ email: formEmail }), 0);
+  await form.screenshot({ path: artifacts + '/passenger-registration-reset-verified.png', fullPage: true });
+
   const passengerEmail = 'passenger@example.test'; await signup(passengerEmail);
   const passengerContext = await browser.newContext();
   // Copy only the fixture API routing, never sessions or user identity.
@@ -103,7 +152,13 @@ try {
   await passenger.getByText(/4:5[789]/).waitFor();
   assert.ok(smtp.messages.at(-1).includes((await db.collection('otps').findOne({ email: passengerEmail })).otp));
   assert.deepEqual(errors, []);
-  console.log('PASS: mailed OTP, wrong-code rejection, verification beyond 15 seconds, repeat verification, driver login/pending approval, and resend countdown restart.');
+  console.log('PASS: passenger signup form, email verification, login, logout, forgot/reset password and old-password rejection; driver mailed OTP, wrong-code rejection, verification beyond 15 seconds, repeat verification, pending approval, and resend countdown restart.');
+} catch (error) {
+  for (const [index, ctx] of (browser?.contexts() || []).entries()) for (const [pageIndex, failedPage] of ctx.pages().entries()) {
+    console.error('Auth test page:', failedPage.url(), (await failedPage.locator('body').innerText()).slice(0, 1200));
+    await failedPage.screenshot({ path: artifacts + `/auth-failure-${index}-${pageIndex}.png`, fullPage: true }).catch(() => {});
+  }
+  throw error;
 } finally {
   upload?.mock.restore(); await browser?.close();
   if (webServer) await new Promise(resolve => webServer.close(resolve));

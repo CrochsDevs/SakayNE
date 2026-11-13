@@ -10,6 +10,7 @@ import { randomInt } from 'node:crypto';
 import { createSession } from '../../shared/session.js';
 import { uploadImage, validateImage } from '../../config/cloudinary.js';
 import { requireValue, sendError } from '../../shared/errors.js';
+import { BUS_SERVICE_ENABLED, BUS_COMING_SOON } from '../../../client/src/data/service-availability.mjs';
 
 const validPassword = value => typeof value === 'string' && value.length >= 8 && Buffer.byteLength(value, 'utf8') <= 72;
 const validEmail = value => typeof value === 'string' && value.length <= 254 && /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$/.test(value);
@@ -28,6 +29,7 @@ export async function signup(req, res) {
     if (role === 'driver' && (![req.body.licenseNo, req.body.plateNo].every(value => typeof value === 'string' && value.trim() && value.length <= 100) || !['bus', 'jeepney'].includes(req.body.vehicleType)))
       return res.status(400).json({ error: 'Driver license, plate number and vehicle type are required' });
 
+    requireValue(!(role === 'driver' && req.body.vehicleType === 'bus' && !BUS_SERVICE_ENABLED), BUS_COMING_SOON, 409);
     const existing = await AuthModel.findByEmail(email);
     if (existing)
       return res.status(400).json({ error: "Email already registered" });
@@ -81,6 +83,7 @@ export async function verifyEmail(req, res) {
     if (await AuthModel.findByEmail(email)) return res.status(409).json({ error: 'Email already registered' });
 
     const { fullName, phone, password, role, licenseNo, plateNo, vehicleType, vehicleModel, application, documents } = pending.data;
+    requireValue(!(role === 'driver' && vehicleType === 'bus' && !BUS_SERVICE_ENABLED), BUS_COMING_SOON, 409);
     const validRole = ROLES[role?.toUpperCase()] || ROLES.PASSENGER;
     const documentUrls = {};
     if (validRole === 'driver') {

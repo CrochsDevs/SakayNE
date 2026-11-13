@@ -7,6 +7,7 @@ import { logout } from '@/src/auth/auth.service';
 import { usePolling } from '@/src/ride/usePolling';
 import { showError } from '@/src/utils/toast';
 import OperationsOverview from '@/src/components/OperationsOverview';
+import DriverReports from '@/src/components/DriverReports';
 interface Application { _id: string; fullName: string; email: string; phone: string; vehicleType: string; plateNo: string; licenseNo: string; approvalStatus: string; application?: Record<string, string>; documents?: Record<string, string>; }
 export default function AdminScreen() {
   const { data, error, loading, refresh } = usePolling(async () => (await apiRequest<{ drivers: Application[] }>('/admin/drivers')).drivers, [] as Application[]);
@@ -19,6 +20,7 @@ export default function AdminScreen() {
       <Action title="Approve driver" disabled={busy || d.approvalStatus === 'approved'} onPress={() => { void review(d, 'approved'); }} /><Action title="Reject application" secondary disabled={busy || d.approvalStatus === 'rejected'} onPress={() => { void review(d, 'rejected'); }} />
     </Card>)}
     {!loading && !data.length && <Label>No applications yet.</Label>}
+    <Label strong>Passenger reports</Label><DriverReports admin />
     <Action title="Sign out" secondary onPress={() => { void logout().catch(() => {}).finally(() => router.replace('/(auth)/login')); }} />
   </Screen>;
 }

@@ -2,9 +2,13 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { chromium, expect } from '@playwright/test';
+import express from 'express';
 
-// Run against Metro. All API calls use isolated fixtures, never application data.
-const webBase = process.env.BROWSER_WEB_URL || 'http://localhost:8081';
+// Serve the tested export; all API calls use isolated fixtures.
+const web = express(); web.use(express.static(fileURLToPath(new URL('../../client/dist', import.meta.url)), { extensions: ['html'] }));
+web.get('*', (_req, res) => res.sendFile(fileURLToPath(new URL('../../client/dist/index.html', import.meta.url))));
+const server = web.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
+const webBase = process.env.BROWSER_WEB_URL || `http://127.0.0.1:${server.address().port}`;
 const artifacts = fileURLToPath(new URL('../../artifacts', import.meta.url));
 const catalog = JSON.parse(readFileSync(new URL('../../client/src/data/transit.json', import.meta.url), 'utf8'));
 mkdirSync(artifacts, { recursive: true });
@@ -121,4 +125,4 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log('PASS: online switching, persistence, configured routes visible, other routes cleared, Guimba endpoints, failed-switch recovery, booking lock and no leftover backdrop');
-} finally { await browser.close(); }
+} finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }

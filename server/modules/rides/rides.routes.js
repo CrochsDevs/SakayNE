@@ -8,6 +8,7 @@ import { tripQuote, canTransition, activeStatuses, towns, validLocation } from '
 import { findRoutePickupArea } from '../../../client/src/data/pickup-area.mjs';
 import { normalizePosition, detectOccupancy, hasSeatHold } from './geolocation.js';
 import { expireReservations } from './expiration.js';
+import { isServiceAvailable, BUS_COMING_SOON } from '../../../client/src/data/service-availability.mjs';
 
 const router = Router();
 router.use(authenticate);
@@ -55,6 +56,7 @@ router.post('/', requireRole('passenger'), asyncRoute(async (req, res) => {
   const { driverId, routeId, fromId, toId, seats = 1, requestId } = req.body;
   requireValue(typeof requestId === 'string' && /^[a-zA-Z0-9_-]{8,80}$/.test(requestId), 'Booking request ID is required');
   const quote = tripQuote(routeId, fromId, toId, seats);
+  requireValue(isServiceAvailable(quote.route.type), BUS_COMING_SOON, 409);
   let pickupLocation;
   if (req.body.pickupLocation !== undefined) {
     const position = req.body.pickupLocation;

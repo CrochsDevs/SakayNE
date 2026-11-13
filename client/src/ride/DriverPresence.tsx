@@ -6,6 +6,7 @@ import { getAuth } from '@/src/auth/auth.store';
 import { getDriverProfile, heartbeat, publishLocation } from './driver.service';
 import { getRides, isActiveRide } from './ride.store';
 import { useAppForeground } from './useAppForeground';
+import { isServiceAvailable } from '@/src/data/service-availability.mjs';
 
 export default function DriverPresence() {
   const path = usePathname();
@@ -28,6 +29,7 @@ export default function DriverPresence() {
         if (disposed) return;
         const active = (await getRides()).some(isActiveRide);
         if (disposed) return;
+        if (!isServiceAvailable(driver.vehicleType) && !active) { stop(); setMessage(''); return; }
         if (!driver.isAvailable && !active) { stop(); if (!disposed) setMessage(''); return; }
         if (driver.isAvailable) await heartbeat();
         if (!subscription && !disposed) {

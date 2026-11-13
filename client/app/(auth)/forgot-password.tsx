@@ -110,7 +110,7 @@ export default function ForgotPasswordScreen() {
               <>
                 <Text style={{ fontSize: moderateScale(24), fontWeight: '800', color: colors.text, textAlign: 'center', marginBottom: verticalScale(8) }}>{t('auth.newPasswordTitle')}</Text>
                 <Text style={{ fontSize: moderateScale(14), color: colors.textTertiary, textAlign: 'center', marginBottom: verticalScale(32), lineHeight: moderateScale(20) }}>{t('auth.newPasswordSubtitle')}</Text>
-                <Input label={t('auth.newPassword')} placeholder="At least 6 characters" value={newPassword} onChangeText={(tt) => { setNewPassword(tt); setError(''); }} secureTextEntry icon="lock-closed-outline" error={error} />
+                <Input label={t('auth.newPassword')} placeholder="At least 8 characters" value={newPassword} onChangeText={(tt) => { setNewPassword(tt); setError(''); }} secureTextEntry icon="lock-closed-outline" error={error} />
                 <TouchableOpacity onPress={handleReset} disabled={loading} activeOpacity={0.85}
                   style={{ width: '100%', height: verticalScale(54), borderRadius: scale(16), justifyContent: 'center', alignItems: 'center', backgroundColor: colors.primary, opacity: loading ? 0.7 : 1, marginTop: verticalScale(16) }}>
                   {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ fontSize: moderateScale(16), fontWeight: '700', color: '#fff' }}>{t('auth.resetPassword')}</Text>}

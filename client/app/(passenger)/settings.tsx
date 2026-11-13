@@ -41,6 +41,7 @@ export default function SettingsScreen() {
     {
       section: t('settings.support'),
       items: [
+        { icon: 'flag-outline', label: 'My reports', desc: 'Driver complaints and admin responses', color: colors.error, route: 'my-reports' },
         { icon: 'help-circle-outline', label: t('settings.helpCenter'), desc: t('settings.helpCenterDesc'), color: isDark ? colors.textSecondary : Brand.coral, route: 'help-center' },
         { icon: 'information-circle-outline', label: t('settings.about'), desc: t('settings.aboutDesc'), color: colors.textTertiary, route: 'about' },
       ],

@@ -1,9 +1,9 @@
-export function rateLimit(limit = 30, windowMs = 15 * 60000) {
+export function rateLimit(limit = 30, windowMs = 15 * 60000, keyFor = req => req.ip) {
   const clients = new Map();
   return (req, res, next) => {
     const now = Date.now();
     for (const [key, entry] of clients) if (entry.expires <= now) clients.delete(key);
-    const key = req.ip;
+    const key = keyFor(req);
     // Refuse new buckets at capacity instead of allowing unbounded memory growth.
     if (!clients.has(key) && clients.size >= 10000) {
       res.set('Retry-After', String(Math.ceil(windowMs / 1000)));

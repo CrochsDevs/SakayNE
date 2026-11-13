@@ -1,24 +1,21 @@
 import { readFileSync } from "fs";
-import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const logoPath = join(
-  __dirname,
-  "..",
-  "..",
-  "client",
-  "assets",
-  "logo",
-  "SakayNE.png",
-);
+// A server-only deployment must not depend on files outside its root directory.
+const logoPath = fileURLToPath(new URL('../assets/email-logo.png', import.meta.url));
 
 let logoDataUri = null;
+let logoLoaded = false;
 
 function getLogo() {
-  if (!logoDataUri) {
-    const img = readFileSync(logoPath);
-    logoDataUri = "data:image/png;base64," + img.toString("base64");
+  if (!logoLoaded) {
+    try {
+      const img = readFileSync(logoPath);
+      logoDataUri = "data:image/png;base64," + img.toString("base64");
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+    logoLoaded = true;
   }
   return logoDataUri;
 }
@@ -37,7 +34,7 @@ export function verifyEmailTemplate({ otp }) {
 <body style="margin:0;padding:32px 16px;background:#f5f5f5">
   <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
     <div style="background:#0D1F16;padding:32px;text-align:center">
-      <img src="${logo}" alt="Sakay" style="width:56px;height:56px" />
+      ${logo ? `<img src="${logo}" alt="Sakay" style="width:56px;height:56px" />` : '<span style="color:#fff;font-size:24px;font-weight:900">SAKAY</span>'}
     </div>
     <div style="padding:32px 28px">
       <h2 style="font-size:22px;font-weight:800;color:#0D1F16;margin:0 0 8px;text-align:center">Verify your email</h2>
@@ -62,7 +59,7 @@ export function otpTemplate({ otp }) {
 <body style="margin:0;padding:32px 16px;background:#f5f5f5">
   <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
     <div style="background:#0D1F16;padding:32px;text-align:center">
-      <img src="${logo}" alt="Sakay" style="width:56px;height:56px" />
+      ${logo ? `<img src="${logo}" alt="Sakay" style="width:56px;height:56px" />` : '<span style="color:#fff;font-size:24px;font-weight:900">SAKAY</span>'}
     </div>
     <div style="padding:32px 28px">
       <h2 style="font-size:22px;font-weight:800;color:#0D1F16;margin:0 0 8px;text-align:center">Your OTP Code</h2>

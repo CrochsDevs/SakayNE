@@ -13,7 +13,7 @@ import { useInterfaceText } from '@/src/i18n/useInterfaceText';
 export default function DriverLayout() {
   const { colors } = useTheme();
   const translate = useInterfaceText();
-  const screenOptions = useAppTabBar();
+  const screenOptions = useAppTabBar(6);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const session = usePolling(refreshCurrentUser, null);
@@ -57,6 +57,9 @@ export default function DriverLayout() {
         <Tabs.Screen name="driver-wallet" options={{
           title: translate('Wallet'),
           tabBarIcon: ({ color, focused }) => <AppTabIcon name={focused ? 'wallet' : 'wallet-outline'} focused={focused} color={color} />,
+        }} />
+        <Tabs.Screen name="driver-community" options={{ title: 'Community', tabBarAccessibilityLabel: 'Community, coming soon',
+          tabBarIcon: ({ color, focused }) => <AppTabIcon name={focused ? 'people' : 'people-outline'} focused={focused} color={color} />,
         }} />
         <Tabs.Screen name="settings" options={{
           title: translate('Settings'),

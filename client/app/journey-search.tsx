@@ -11,6 +11,7 @@ import { useTheme } from '@/src/store/theme';
 import { usePolling } from '@/src/ride/usePolling';
 import TravelTimeEstimate from '@/src/components/TravelTimeEstimate';
 import { searchPlaces, type MapPlace } from '@/src/ride/maps.service';
+import { isServiceAvailable } from '@/src/data/service-availability.mjs';
 
 interface Journey {
   routeId: string; label: string; type: 'bus' | 'jeep'; fromId: string; toId: string;
@@ -28,7 +29,7 @@ function Results({ search }: { search: Search }) {
     {result.loading && <Loading />}
     {!!result.error && <Card><Label>{translate("Cannot refresh availability. Reconnect before choosing a vehicle.")}</Label><Action title={translate("Retry search")} onPress={result.refresh} /></Card>}
     {!result.loading && !result.error && !result.data.journeys.length && <Card><View style={[styles.resultIcon, { backgroundColor: colors.accentSurface }]}><Ionicons name="map-outline" size={28} color={colors.onAccent} /></View><Label strong>{translate("No direct route found")}</Label><Label>{translate("Try another pickup or destination. Only direct trips are available for now.")}</Label></Card>}
-    {result.data.journeys.map(journey => <Card key={journey.routeId}>
+    {result.data.journeys.filter(journey => isServiceAvailable(journey.type)).map(journey => <Card key={journey.routeId}>
       <Label strong>{journey.fromName} → {journey.toName}</Label>
       <Label>{journey.label} · {journey.type === 'bus' ? 'Bus' : 'Jeepney'}</Label>
       <Label strong>{translate('{{count}} seat(s)', { count: journey.seats })}</Label>
@@ -119,7 +120,7 @@ export default function JourneySearch() {
       <View style={styles.intro}>
         <View style={styles.introEyebrow}><View style={[styles.eyebrowLine, { backgroundColor: brand.sunshine }]} /><Text style={{ color: colors.primaryLight, fontSize: 10, letterSpacing: 1.5, fontWeight: '800' }}>{translate("LET’S GET YOU THERE")}</Text></View>
         <Text style={[styles.title, { color: colors.text }]}>{translate("Where are you going?")}</Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{translate("A jeepney or bus, just a few taps away.")}</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Your next jeepney ride, just a few taps away.</Text>
       </View>
 
       <View style={[styles.routeCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -155,9 +156,11 @@ export default function JourneySearch() {
           {[['', translate("All rides")], ['jeep', 'Jeepney'], ['bus', 'Bus']].map(([value, label]) => {
             const active = type === value;
             const color = active ? '#FFFFFF' : colors.primaryLight;
-            return <TouchableOpacity key={value} accessibilityRole="button" accessibilityLabel={value ? label : translate("All vehicles")} accessibilityState={{ selected: active }} onPress={() => { setType(value); edit(); }} style={[styles.vehicleChoice, { backgroundColor: active ? colors.primary : colors.card, borderColor: active ? colors.primary : colors.border }]}>
+            const unavailable = !!value && !isServiceAvailable(value);
+            return <TouchableOpacity key={value} accessibilityRole="button" accessibilityLabel={unavailable ? 'Bus, coming soon' : value ? label : translate("All vehicles")} accessibilityState={{ selected: active, disabled: unavailable }} disabled={unavailable} onPress={() => { setType(value); edit(); }} style={[styles.vehicleChoice, { opacity: unavailable ? 0.5 : 1, backgroundColor: active ? colors.primary : colors.card, borderColor: active ? colors.primary : colors.border }]}>
               {value === 'jeep' ? <Image source={require('../assets/icon/jeepney.png')} resizeMode="contain" tintColor={color} style={{ width: 42, height: 38 }} /> : <View style={styles.vehicleIcon}><Ionicons name={value === 'bus' ? 'bus-outline' : 'grid-outline'} size={28} color={color} /></View>}
               <Text style={{ color: active ? '#FFFFFF' : colors.text, fontSize: 13, fontWeight: '700' }}>{label}</Text>
+              {unavailable && <Text style={{ color: colors.textSecondary, fontSize: 10 }}>Coming soon</Text>}
               {active && <View style={styles.selectedVehicle}><Ionicons name="checkmark-circle" size={14} color={brand.sunshine} /></View>}
             </TouchableOpacity>;
           })}
