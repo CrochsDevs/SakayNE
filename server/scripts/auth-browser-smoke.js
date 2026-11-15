@@ -8,18 +8,18 @@ import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import { chromium, expect } from '@playwright/test';
 import app from '../src/app.js';
 import { connectDB, closeDB } from '../config/db.js';
-import { startTestSmtp } from '../test-support/smtp.js';
+import { startTestMail } from '../test-support/mail.js';
 
 const artifacts = fileURLToPath(new URL('../../artifacts', import.meta.url));
 const dist = fileURLToPath(new URL('../../client/dist', import.meta.url));
 mkdirSync(artifacts, { recursive: true });
-let mongo, smtp, apiServer, webServer, browser, upload;
+let mongo, mail, apiServer, webServer, browser, upload;
 try {
   mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 }, binary: { downloadDir: fileURLToPath(new URL('../.cache/mongodb', import.meta.url)) } });
   process.env.MONGO_URI = mongo.getUri(); process.env.DB_NAME = 'sakayne_auth_browser_test';
   process.env.CLOUDINARY_CLOUD_NAME = 'local-fixture'; process.env.CLOUDINARY_API_KEY = 'fixture-key'; process.env.CLOUDINARY_API_SECRET = 'fixture-secret';
   const db = await connectDB();
-  smtp = await startTestSmtp(); Object.assign(process.env, smtp.environment);
+  mail = await startTestMail(); Object.assign(process.env, mail.environment);
   let inFlight = 0, maxInFlight = 0;
   upload = mock.method(cloudinary.uploader, 'upload', async () => {
     inFlight++; maxInFlight = Math.max(maxInFlight, inFlight);
@@ -53,7 +53,7 @@ try {
     }) });
     assert.equal(response.status, 200, await response.text());
     const otp = await db.collection('otps').findOne({ email });
-    assert.ok(smtp.messages.at(-1).includes(otp.otp));
+    assert.ok(mail.messages.at(-1).includes(otp.otp));
     return otp.otp;
   }
   const email = 'driver@example.test', code = await signup(email, true);
@@ -101,7 +101,7 @@ try {
   await form.getByRole('button', { name: 'Create passenger account', exact: true }).click();
   await form.getByLabel('Email verification code').waitFor();
   const formOtp = await db.collection('otps').findOne({ email: formEmail, purpose: 'registration' });
-  assert.ok(smtp.messages.at(-1).includes(formOtp.otp));
+  assert.ok(mail.messages.at(-1).includes(formOtp.otp));
   await form.getByLabel('Email verification code').fill(formOtp.otp);
   await form.getByRole('button', { name: 'Verify email', exact: true }).click();
   await form.getByText('Sign In', { exact: true }).filter({ visible: true }).waitFor();
@@ -116,7 +116,7 @@ try {
   await form.getByText('Send Code', { exact: true }).click();
   await form.getByPlaceholder('000000', { exact: true }).waitFor();
   const resetOtp = await db.collection('otps').findOne({ email: formEmail, purpose: 'reset' });
-  assert.ok(smtp.messages.at(-1).includes(resetOtp.otp));
+  assert.ok(mail.messages.at(-1).includes(resetOtp.otp));
   await form.getByPlaceholder('000000', { exact: true }).fill(resetOtp.otp);
   await form.getByText('Next', { exact: true }).click();
   await form.getByPlaceholder('At least 8 characters', { exact: true }).fill('ChangedPassword123');
@@ -150,7 +150,7 @@ try {
   await expect(passenger.getByRole('button', { name: 'Verify email', exact: true })).toBeEnabled();
   await passenger.clock.fastForward(2000);
   await passenger.getByText(/4:5[789]/).waitFor();
-  assert.ok(smtp.messages.at(-1).includes((await db.collection('otps').findOne({ email: passengerEmail })).otp));
+  assert.ok(mail.messages.at(-1).includes((await db.collection('otps').findOne({ email: passengerEmail })).otp));
   assert.deepEqual(errors, []);
   console.log('PASS: passenger signup form, email verification, login, logout, forgot/reset password and old-password rejection; driver mailed OTP, wrong-code rejection, verification beyond 15 seconds, repeat verification, pending approval, and resend countdown restart.');
 } catch (error) {
@@ -163,5 +163,5 @@ try {
   upload?.mock.restore(); await browser?.close();
   if (webServer) await new Promise(resolve => webServer.close(resolve));
   if (apiServer) await new Promise(resolve => apiServer.close(resolve));
-  await smtp?.close(); await closeDB(); await mongo?.stop();
+  await mail?.close(); await closeDB(); await mongo?.stop();
 }

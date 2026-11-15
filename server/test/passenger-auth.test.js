@@ -3,7 +3,7 @@ import { before, after, test } from 'node:test';
 import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import { fileURLToPath } from 'node:url';
 import { closeDB, connectDB, getDB } from '../config/db.js';
-import { startTestSmtp } from '../test-support/smtp.js';
+import { startTestMail } from '../test-support/mail.js';
 import app from '../src/app.js';
 
 let mongo, server, base;
@@ -27,28 +27,28 @@ async function api(path, role, method, body) {
 }
 
 test('passenger signup, email verification and password reset deliver codes and create only a passenger account', async () => {
-  const smtp = await startTestSmtp(); Object.assign(process.env, smtp.environment);
+  const mail = await startTestMail(); Object.assign(process.env, mail.environment);
   const email = 'passenger-email-flow@example.test';
   try {
     const signup = await api('/auth/signup', 'anonymous', 'POST', { fullName: 'Passenger Fixture', email, phone: '09123456756', password: '1234567890', role: 'passenger' });
     assert.equal(signup.status, 200, JSON.stringify(signup.body));
     const registration = await getDB().collection('otps').findOne({ email, purpose: 'registration' });
-    assert.ok(registration); assert.match(smtp.messages[0], new RegExp(registration.otp));
+    assert.ok(registration); assert.match(mail.messages[0], new RegExp(registration.otp));
     assert.equal((await api('/auth/verify-email', 'anonymous', 'POST', { email, otp: registration.otp })).status, 200);
     assert.equal((await getDB().collection('auth').findOne({ email })).role, 'passenger');
     assert.equal(await getDB().collection('drivers').countDocuments({ email }), 0);
     assert.equal((await api('/auth/login', 'anonymous', 'POST', { identifier: email, password: '1234567890' })).status, 200);
     assert.equal((await api('/auth/forgot-password', 'anonymous', 'POST', { email })).status, 200);
     const reset = await getDB().collection('otps').findOne({ email, purpose: 'reset' });
-    assert.match(smtp.messages[1], new RegExp(reset.otp));
+    assert.match(mail.messages[1], new RegExp(reset.otp));
     assert.equal((await api('/auth/reset-password', 'anonymous', 'POST', { email, otp: reset.otp, newPassword: 'ChangedPassword123' })).status, 200);
     assert.equal((await api('/auth/login', 'anonymous', 'POST', { identifier: email, password: '1234567890' })).status, 401);
     assert.equal((await api('/auth/login', 'anonymous', 'POST', { identifier: email, password: 'ChangedPassword123' })).status, 200);
-  } finally { await smtp.close(); }
+  } finally { await mail.close(); }
 });
 
 test('bus signup, pending bus verification and OTP resend return coming soon without creating accounts or sending mail', async () => {
-  const smtp = await startTestSmtp(); Object.assign(process.env, smtp.environment);
+  const mail = await startTestMail(); Object.assign(process.env, mail.environment);
   const email = 'bus-coming-soon@example.test';
   try {
     const signup = await api('/auth/signup', 'anonymous', 'POST', { fullName: 'Bus Fixture', email, phone: '09123456789', password: 'TestPassword123', role: 'driver', vehicleType: 'bus', licenseNo: 'TEST', plateNo: 'TEST 123' });
@@ -63,13 +63,13 @@ test('bus signup, pending bus verification and OTP resend return coming soon wit
     }
     assert.equal(await getDB().collection('auth').countDocuments({ email }), 0);
     assert.equal(await getDB().collection('drivers').countDocuments({ email }), 0);
-    assert.equal(smtp.messages.length, 0);
-  } finally { await smtp.close(); }
+    assert.equal(mail.messages.length, 0);
+  } finally { await mail.close(); }
 });
 
 test('HTTPS email supports passenger signup, resend, verification and password reset without SMTP', async t => {
   const previous = {};
-  for (const [name, value] of Object.entries({ EMAIL_PROVIDER: 'brevo', BREVO_API_KEY: 'local-api-fixture', EMAIL_FROM: 'sender@example.test' })) {
+  for (const [name, value] of Object.entries({ BREVO_API_KEY: 'local-api-fixture', EMAIL_FROM: 'sender@example.test' })) {
     previous[name] = process.env[name]; process.env[name] = value;
   }
   t.after(() => {

@@ -4,7 +4,7 @@ import { MongoMemoryReplSet } from "mongodb-memory-server";
 import assert from "node:assert/strict";
 import { after, before, beforeEach, mock, test } from "node:test";
 import { v2 as cloudinary } from 'cloudinary';
-import { startTestSmtp } from '../test-support/smtp.js';
+import { startTestMail } from '../test-support/mail.js';
 import { fileURLToPath } from "node:url";
 import { closeDB, connectDB, getDB } from "../config/db.js";
 import { createSession } from "../shared/session.js";
@@ -805,8 +805,8 @@ test("registration confirmation creates a complete driver profile atomically and
   assert.equal(res.body.user.verified, false);
 });
 test('driver signup sends a usable OTP, uploads documents concurrently, verifies via either URL and then logs in', async () => {
-  const smtp = await startTestSmtp();
-  Object.assign(process.env, smtp.environment);
+  const mail = await startTestMail();
+  Object.assign(process.env, mail.environment);
   let inFlight = 0, maxInFlight = 0;
   const upload = mock.method(cloudinary.uploader, 'upload', async (_image, options) => {
     assert.equal(options.type, 'authenticated');
@@ -823,12 +823,12 @@ test('driver signup sends a usable OTP, uploads documents concurrently, verifies
       licenseNo: 'N01TEST', plateNo: 'OTP123', vehicleType: 'jeepney', documents,
     })).status, 200);
     const db = getDB(), original = await db.collection('otps').findOne({ email });
-    assert.match(smtp.messages[0], new RegExp(original.otp));
+    assert.match(mail.messages[0], new RegExp(original.otp));
     assert.equal((await api('/auth/verify-email', 'anonymous', 'POST', { email, otp: '000000' })).status, 400);
     assert.equal(await db.collection('auth').countDocuments({ email }), 0);
     assert.equal((await api('/otp/send', 'anonymous', 'POST', { email })).status, 200);
     const valid = await db.collection('otps').findOne({ email });
-    assert.match(smtp.messages[1], new RegExp(valid.otp));
+    assert.match(mail.messages[1], new RegExp(valid.otp));
     if (valid.otp !== original.otp) assert.equal((await api('/auth/verify-email', 'anonymous', 'POST', { email, otp: original.otp })).status, 400);
     assert.equal((await api('/otp/verify', 'anonymous', 'POST', { email, otp: valid.otp })).status, 200);
     assert.equal(upload.mock.callCount(), 4);
@@ -846,7 +846,7 @@ test('driver signup sends a usable OTP, uploads documents concurrently, verifies
     assert.equal(login.body.user.role, 'driver');
     assert.equal(login.body.user.approvalStatus, 'pending');
     assert.equal(login.body.token.length, 64);
-  } finally { upload.mock.restore(); await smtp.close(); }
+  } finally { upload.mock.restore(); await mail.close(); }
 });
 
 test('a document upload failure preserves the correct OTP and pending registration for retry', async () => {
