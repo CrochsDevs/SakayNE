@@ -69,21 +69,21 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: scale(24) }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-          <TouchableOpacity onPress={() => router.back()} style={{ width: scale(44), height: scale(44), justifyContent: 'center', alignItems: 'center', marginTop: verticalScale(8) }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, width: '100%', maxWidth: 440, alignSelf: 'center', paddingHorizontal: 24, paddingBottom: 16 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <TouchableOpacity accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={{ width: 44, height: 44, justifyContent: 'center', alignItems: 'center', marginTop: 4 }}>
             <View style={{ width: scale(40), height: scale(40), borderRadius: scale(20), backgroundColor: colors.mintSurface, justifyContent: 'center', alignItems: 'center' }}>
               <Ionicons name="arrow-back" size={moderateScale(22)} color={colors.text} />
             </View>
           </TouchableOpacity>
 
-          <View style={{ flex: 1, justifyContent: 'center' }}>
-            <View style={{ alignItems: 'center', marginBottom: 0 }}>
-              <View style={{ alignSelf: 'center', paddingVertical: 30 }}><BrandMark large /></View>
+          <View style={{ paddingTop: 4 }}>
+            <View style={{ alignItems: 'center', marginBottom: 8 }}>
+              <BrandMark />
             </View>
             <Text style={{ fontSize: moderateScale(28), fontWeight: '800', textAlign: 'center', color: colors.text, marginBottom: verticalScale(6) }}>
               {t('auth.welcomeBack')}
             </Text>
-            <Text style={{ fontSize: moderateScale(15), textAlign: 'center', color: colors.textTertiary, marginBottom: verticalScale(40), lineHeight: moderateScale(22) }}>
+            <Text style={{ fontSize: moderateScale(15), textAlign: 'center', color: colors.textTertiary, marginBottom: 20, lineHeight: moderateScale(22) }}>
               {t('auth.signInSubtitle')}
             </Text>
 
@@ -97,29 +97,32 @@ export default function LoginScreen() {
               onChangeText={(text) => { setPassword(text); setErrors((e) => ({ ...e, password: undefined })); }}
               secureTextEntry icon="lock-closed-outline" error={errors.password} />
 
-            <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password')} style={{ alignSelf: 'flex-end', marginBottom: verticalScale(32) }}>
+            <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('auth.forgotPassword')} onPress={() => router.push('/(auth)/forgot-password')} style={{ alignSelf: 'flex-end', minHeight: 44, justifyContent: 'center', marginTop: -8, marginBottom: 8 }}>
               <Text style={{ fontSize: moderateScale(14), fontWeight: '600', color: colors.primaryLight }}>{t('auth.forgotPassword')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={handleLogin} disabled={loading} activeOpacity={0.85}
-              style={{ width: '100%', height: verticalScale(54), borderRadius: scale(16), justifyContent: 'center', alignItems: 'center', backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }}>
+              accessibilityRole="button" accessibilityLabel={t('auth.signIn')}
+              style={{ width: '100%', minHeight: 48, borderRadius: scale(16), justifyContent: 'center', alignItems: 'center', backgroundColor: colors.primary, opacity: loading ? 0.7 : 1 }}>
               {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ fontSize: moderateScale(16), fontWeight: '700', color: '#fff' }}>{t('auth.signIn')}</Text>}
             </TouchableOpacity>
           </View>
 
-          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: verticalScale(24) }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 12 }}>
             <Text style={{ fontSize: moderateScale(14), color: colors.textTertiary }}>{t('auth.noAccount')}</Text>
           </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel={t('auth.passengerSignup')} disabled={loading}
             onPress={() => router.push('/(auth)/signup')} activeOpacity={0.85}
-            style={{ minHeight: verticalScale(48), justifyContent: 'center', alignItems: 'center', borderRadius: scale(16), backgroundColor: colors.mintSurface, borderWidth: 1, borderColor: colors.border, marginBottom: verticalScale(12) }}>
-            <Text style={{ fontSize: moderateScale(14), fontWeight: '700', color: colors.primaryLight }}>{t('auth.passengerSignup')}</Text>
+            style={{ flex: 1, minHeight: 48, padding: 8, justifyContent: 'center', alignItems: 'center', borderRadius: scale(16), backgroundColor: colors.mintSurface, borderWidth: 1, borderColor: colors.border }}>
+            <Text style={{ fontSize: 13, textAlign: 'center', fontWeight: '700', color: colors.primaryLight }}>{t('auth.passengerSignup')}</Text>
           </TouchableOpacity>
           <TouchableOpacity accessibilityRole="button" accessibilityLabel="Register as driver" disabled={loading}
             onPress={() => router.push('/driver-register')} activeOpacity={0.85}
-            style={{ minHeight: verticalScale(48), justifyContent: 'center', alignItems: 'center', borderRadius: scale(16), borderWidth: 1, borderColor: colors.border, marginBottom: verticalScale(24) }}>
-            <Text style={{ fontSize: moderateScale(14), fontWeight: '700', color: colors.primaryLight }}>Register as driver</Text>
+            style={{ flex: 1, minHeight: 48, padding: 8, justifyContent: 'center', alignItems: 'center', borderRadius: scale(16), borderWidth: 1, borderColor: colors.border }}>
+            <Text style={{ fontSize: 13, textAlign: 'center', fontWeight: '700', color: colors.primaryLight }}>Register as driver</Text>
           </TouchableOpacity>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
