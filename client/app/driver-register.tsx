@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, TextInput, Modal, FlatList, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -16,6 +16,7 @@ const VEHICLE_TYPES = ['jeepney', 'bus'];
 
 
 export default function DriverRegisterScreen() {
+  const formScrollRef = useRef<ScrollView>(null);
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [checkingEmail, setCheckingEmail] = useState(false);
@@ -74,6 +75,10 @@ export default function DriverRegisterScreen() {
   const [routeTo, setRouteTo] = useState('');
   const [showTownPicker, setShowTownPicker] = useState<'from' | 'to' | null>(null);
   const [townQuery, setTownQuery] = useState('');
+
+  useEffect(() => {
+    formScrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [step]);
 
   const TOWNS = ['Aliaga','Bongabon','Cabanatuan City','Cabiao','Carranglan','Cuyapo','Gabaldon','Gapan City','Gen. M. Natividad','Gen. Tinio','Guimba','Jaen','Laur','Licab','Llanera','Lupao','Nampicuan','Palayan City','Pantabangan','Penaranda','Quezon','Rizal','San Antonio','San Isidro','San Jose City','San Leonardo','Santa Rosa','Sci. City of Munoz','Santo Domingo','Talugtug','Talavera','Zaragoza'];
 
@@ -188,6 +193,7 @@ export default function DriverRegisterScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView
+          ref={formScrollRef}
           style={{ flex: 1, width: '100%' }}
           contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 28, paddingBottom: 40 }}
           keyboardShouldPersistTaps="handled"
