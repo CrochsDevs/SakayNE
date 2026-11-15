@@ -1,25 +1,3 @@
-import { readFileSync } from "fs";
-import { fileURLToPath } from "url";
-
-// A server-only deployment must not depend on files outside its root directory.
-const logoPath = fileURLToPath(new URL('../assets/email-logo.png', import.meta.url));
-
-let logoDataUri = null;
-let logoLoaded = false;
-
-function getLogo() {
-  if (!logoLoaded) {
-    try {
-      const img = readFileSync(logoPath);
-      logoDataUri = "data:image/png;base64," + img.toString("base64");
-    } catch (error) {
-      if (error.code !== 'ENOENT') throw error;
-    }
-    logoLoaded = true;
-  }
-  return logoDataUri;
-}
-
 const baseStyle = `
   <style>
     * { font-family: Arial, Helvetica, sans-serif; }
@@ -28,51 +6,44 @@ const baseStyle = `
 `;
 
 export function verifyEmailTemplate({ otp }) {
-  const logo = getLogo();
-  return `<!DOCTYPE html>
-<html>${baseStyle}
-<body style="margin:0;padding:32px 16px;background:#f5f5f5">
-  <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
-    <div style="background:#0D1F16;padding:32px;text-align:center">
-      ${logo ? `<img src="${logo}" alt="Sakay" style="width:56px;height:56px" />` : '<span style="color:#fff;font-size:24px;font-weight:900">SAKAY</span>'}
-    </div>
-    <div style="padding:32px 28px">
-      <h2 style="font-size:22px;font-weight:800;color:#0D1F16;margin:0 0 8px;text-align:center">Verify your email</h2>
-      <p style="font-size:14px;color:#6B7280;margin:0 0 28px;text-align:center;line-height:22px">Use the code below to complete your account registration.</p>
-      <div style="background:#F0F7F1;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
-        <p style="font-size:12px;color:#3F8451;font-weight:700;margin:0 0 12px;text-transform:uppercase;letter-spacing:2px">Verification Code</p>
-        <div style="font-size:40px;font-weight:900;color:#0D1F16;letter-spacing:10px;font-family:'Courier New',monospace;text-align:center">${otp}</div>
-      </div>
-      <p style="font-size:13px;color:#9CA3AF;text-align:center;margin:0">Expires in <strong style="color:#3F8451">5 minutes</strong></p>
-    </div>
-    <div style="background:#F9FAFB;padding:20px;text-align:center;border-top:1px solid #E5E7EB">
-      <p style="font-size:11px;color:#9CA3AF;margin:0">&copy; ${new Date().getFullYear()} Sakay</p>
-    </div>
-  </div>
-</body></html>`;
+  return renderOtpEmail({ otp, title: 'Verify your email', description: 'Enter this code in Sakay to complete your account registration.', label: 'VERIFICATION CODE' });
 }
 
 export function otpTemplate({ otp }) {
-  const logo = getLogo();
+  return renderOtpEmail({ otp, title: 'Your verification code', description: 'Enter this code in Sakay to continue.', label: 'ONE-TIME CODE' });
+}
+
+export function passwordResetTemplate({ otp }) {
+  return renderOtpEmail({ otp, title: 'Reset your password', description: 'Enter this code in Sakay to choose a new password.', label: 'PASSWORD RESET CODE' });
+}
+
+function renderOtpEmail({ otp, title, description, label }) {
+  const year = new Date().getFullYear();
   return `<!DOCTYPE html>
-<html>${baseStyle}
-<body style="margin:0;padding:32px 16px;background:#f5f5f5">
-  <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden">
-    <div style="background:#0D1F16;padding:32px;text-align:center">
-      ${logo ? `<img src="${logo}" alt="Sakay" style="width:56px;height:56px" />` : '<span style="color:#fff;font-size:24px;font-weight:900">SAKAY</span>'}
-    </div>
-    <div style="padding:32px 28px">
-      <h2 style="font-size:22px;font-weight:800;color:#0D1F16;margin:0 0 8px;text-align:center">Your OTP Code</h2>
-      <p style="font-size:14px;color:#6B7280;margin:0 0 28px;text-align:center;line-height:22px">Use the code below to complete your verification.</p>
-      <div style="background:#F0F7F1;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
-        <p style="font-size:12px;color:#3F8451;font-weight:700;margin:0 0 12px;text-transform:uppercase;letter-spacing:2px">OTP Code</p>
-        <div style="font-size:40px;font-weight:900;color:#0D1F16;letter-spacing:10px;font-family:'Courier New',monospace;text-align:center">${otp}</div>
-      </div>
-      <p style="font-size:13px;color:#9CA3AF;text-align:center;margin:0">Expires in <strong style="color:#3F8451">5 minutes</strong></p>
-    </div>
-    <div style="background:#F9FAFB;padding:20px;text-align:center;border-top:1px solid #E5E7EB">
-      <p style="font-size:11px;color:#9CA3AF;margin:0">&copy; ${new Date().getFullYear()} Sakay</p>
-    </div>
-  </div>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">${baseStyle}</head>
+<body style="margin:0;padding:32px 14px;background:#F3F6F4;color:#153B32;font-family:Arial,Helvetica,sans-serif">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td align="center">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:520px;background:#FFFFFF;border:1px solid #E3EAE6;border-radius:16px;overflow:hidden">
+      <tr><td align="center" style="padding:25px 24px;background:#102820;border-bottom:4px solid #40A879">
+        <span style="display:inline-block;color:#FFFFFF;font-size:24px;line-height:30px;font-weight:800;letter-spacing:2px">SAKAY</span>
+        <div style="margin-top:4px;color:#B9D5C8;font-size:11px;line-height:16px;letter-spacing:1.5px">YOUR RIDE, MADE EASIER</div>
+      </td></tr>
+      <tr><td align="center" style="padding:34px 28px 36px">
+        <h1 style="margin:0 0 10px;color:#153B32;font-size:25px;line-height:32px;font-weight:700">${title}</h1>
+        <p style="margin:0 0 26px;color:#64746D;font-size:15px;line-height:23px">${description}</p>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#F1F7F3;border:1px solid #DCEBE1;border-radius:12px">
+          <tr><td align="center" style="padding:21px 16px 20px">
+            <p style="margin:0 0 11px;color:#347A53;font-size:11px;line-height:16px;font-weight:700;letter-spacing:2px">${label}</p>
+            <div style="display:inline-block;padding:8px 16px;background:#FFFFFF;border:1px solid #D5E4DA;border-radius:8px;color:#153B32;font-family:'Courier New',Courier,monospace;font-size:34px;line-height:42px;font-weight:700;letter-spacing:8px">${otp}</div>
+          </td></tr>
+        </table>
+        <p style="margin:20px 0 0;color:#77857E;font-size:13px;line-height:20px">This code expires in <strong style="color:#347A53">5 minutes</strong>.</p>
+        <p style="margin:16px 0 0;color:#88948E;font-size:12px;line-height:18px">If you didn’t request this code, you can safely ignore this email.</p>
+      </td></tr>
+      <tr><td align="center" style="padding:16px 20px;background:#F8FAF9;border-top:1px solid #E7ECE9">
+        <p style="margin:0;color:#8A9690;font-size:11px;line-height:17px">&copy; ${year} Sakay</p>
+      </td></tr>
+    </table>
+  </td></tr></table>
 </body></html>`;
 }

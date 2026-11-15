@@ -1,6 +1,6 @@
 import { getDB, transaction } from "../../config/db.js";
 import { sendEmail } from "../../config/mail.js";
-import { verifyEmailTemplate } from "../../config/email-template.js";
+import { verifyEmailTemplate, passwordResetTemplate } from "../../config/email-template.js";
 import { ROLES } from "../../shared/roles.js";
 import * as AuthModel from "./auth.model.js";
 import * as UserModel from "../users/users.model.js";
@@ -64,6 +64,13 @@ export async function signup(req, res) {
   } catch (err) {
     sendError(res, err);
   }
+}
+
+export async function checkEmail(req, res) {
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  if (!validEmail(email)) return res.status(400).json({ error: 'Enter a valid email address' });
+  const existing = await AuthModel.findByEmail(email);
+  res.json({ available: !existing });
 }
 
 export async function verifyEmail(req, res) {
@@ -188,7 +195,7 @@ export async function forgotPassword(req, res) {
     await sendEmail({
       to: email,
       subject: "Reset your Sakay password",
-      html: `<div style="max-width:520px;margin:0 auto;font-family:sans-serif"><div style="background:#0D1F16;padding:32px;border-radius:16px 16px 0 0;text-align:center"><span style="font-size:24px;font-weight:900;color:#fff;letter-spacing:1px">SAKAY</span></div><div style="background:#fff;padding:40px 32px;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 16px 16px"><h2 style="font-size:22px;font-weight:800;color:#0D1F16;margin:0 0 8px;text-align:center">Reset your password</h2><p style="font-size:14px;color:#6B7280;margin:0 0 32px;text-align:center">Use this code to reset your password:</p><div style="background:#F0F7F1;border-radius:16px;padding:28px;text-align:center;margin-bottom:28px"><div style="font-size:42px;font-weight:900;color:#0D1F16;letter-spacing:12px;font-family:'Courier New',monospace">${otp}</div></div><p style="font-size:13px;color:#9CA3AF;text-align:center;margin:0">Expires in 5 minutes.</p></div></div>`,
+      html: passwordResetTemplate({ otp }),
     });
 
     res.json({ message: "OTP sent to email", email });

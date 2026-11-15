@@ -26,6 +26,13 @@ export async function signup(fullName: string, email: string, phone: string, pas
   return handleResponse(res);
 }
 
+export async function checkEmailAvailable(email: string) {
+  return apiRequest<{ available: boolean }>('/auth/check-email', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
 export async function verifyEmail(email: string, otp: string) {
   const res = await apiFetch(`${API_BASE}/auth/verify-email`, {
     method: 'POST',

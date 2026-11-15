@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { signup, login, verifyEmail, forgotPassword, resetPassword, changePassword } from "./auth.controller.js";
+import { signup, checkEmail, login, verifyEmail, forgotPassword, resetPassword, changePassword } from "./auth.controller.js";
 import { authenticate } from '../../shared/session.js';
 import { asyncRoute } from '../../shared/errors.js';
 import { getDB } from '../../config/db.js';
@@ -7,6 +7,7 @@ import { getDB } from '../../config/db.js';
 const router = Router();
 
 router.post("/signup", signup);
+router.post("/check-email", asyncRoute(checkEmail));
 router.post("/verify-email", verifyEmail);
 router.post("/login", login);
 router.post("/forgot-password", forgotPassword);

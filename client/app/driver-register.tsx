@@ -1,12 +1,12 @@
 import { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, TextInput, Modal, FlatList, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Input } from '@/src/components/ui/Input';
 import DotLoader from '@/src/components/ui/DotLoader';
-import { signup } from '@/src/auth/auth.service';
+import { checkEmailAvailable, signup } from '@/src/auth/auth.service';
 import { showError, showSuccess } from '@/src/utils/toast';
 import { isServiceAvailable } from '@/src/data/service-availability.mjs';
 
@@ -18,6 +18,7 @@ const VEHICLE_TYPES = ['jeepney', 'bus'];
 export default function DriverRegisterScreen() {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [checkingEmail, setCheckingEmail] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 
@@ -72,6 +73,7 @@ export default function DriverRegisterScreen() {
   const [routeFrom, setRouteFrom] = useState('');
   const [routeTo, setRouteTo] = useState('');
   const [showTownPicker, setShowTownPicker] = useState<'from' | 'to' | null>(null);
+  const [townQuery, setTownQuery] = useState('');
 
   const TOWNS = ['Aliaga','Bongabon','Cabanatuan City','Cabiao','Carranglan','Cuyapo','Gabaldon','Gapan City','Gen. M. Natividad','Gen. Tinio','Guimba','Jaen','Laur','Licab','Llanera','Lupao','Nampicuan','Palayan City','Pantabangan','Penaranda','Quezon','Rizal','San Antonio','San Isidro','San Jose City','San Leonardo','Santa Rosa','Sci. City of Munoz','Santo Domingo','Talugtug','Talavera','Zaragoza'];
 
@@ -100,7 +102,25 @@ export default function DriverRegisterScreen() {
     return Object.keys(e).length === 0;
   };
 
-  const nextStep = () => { if (validateStep(step)) setStep(Math.min(2, step + 1)); };
+  const nextStep = async () => {
+    if (checkingEmail || !validateStep(step)) return;
+    if (step === 0) {
+      setCheckingEmail(true);
+      try {
+        const result = await checkEmailAvailable(form.email.trim());
+        if (!result.available) {
+          setErrors(current => ({ ...current, email: 'Email already registered. Mag-sign in sa account mo.' }));
+          return;
+        }
+      } catch (error) {
+        showError(error instanceof Error ? error.message : 'Hindi ma-check ang email. Subukan ulit.');
+        return;
+      } finally {
+        setCheckingEmail(false);
+      }
+    }
+    setStep(current => Math.min(2, current + 1));
+  };
   const prevStep = () => setStep(Math.max(0, step - 1));
 
   const handleSubmit = async () => {
@@ -167,10 +187,17 @@ export default function DriverRegisterScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ paddingHorizontal: 28, paddingBottom: 32 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={{ flex: 1, width: '100%' }}
+          contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 28, paddingBottom: 40 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={Platform.OS === 'web'}
+        >
 
           {/* Header */}
-          <TouchableOpacity onPress={() => step === 0 ? router.back() : prevStep()} style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: bg, justifyContent: 'center', alignItems: 'center', marginTop: 12 }}>
+          <TouchableOpacity onPress={() => step === 0 ? (router.canGoBack() ? router.back() : router.replace('/(auth)/signup')) : prevStep()} style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: bg, justifyContent: 'center', alignItems: 'center', marginTop: 12 }}>
             <Ionicons name="arrow-back" size={24} color={C} />
           </TouchableOpacity>
           <Text style={{ fontSize: 26, fontWeight: '800', color: C, marginTop: 16, marginBottom: 4 }}>Driver Register</Text>
@@ -227,8 +254,8 @@ export default function DriverRegisterScreen() {
             <Input label="Ulitin ang Password *" placeholder="I-ulit" value={form.confirmPassword} onChangeText={(v) => u('confirmPassword', v)} secureTextEntry icon="lock-closed-outline" error={errors.confirmPassword} />
 
             <View style={{ height: 20 }} />
-            <TouchableOpacity onPress={nextStep} activeOpacity={0.85} style={{ width: '100%', height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: B, boxShadow: '0 4px 8px rgba(8,127,140,0.2)', elevation: 4 }}>
-              <Text style={{ fontSize: 17, fontWeight: '700', color: '#fff' }}>Susunod</Text>
+            <TouchableOpacity onPress={() => { void nextStep(); }} disabled={checkingEmail} activeOpacity={0.85} style={{ width: '100%', height: 56, borderRadius: 16, justifyContent: 'center', alignItems: 'center', backgroundColor: B, opacity: checkingEmail ? 0.75 : 1, boxShadow: '0 4px 8px rgba(8,127,140,0.2)', elevation: 4 }}>
+              {checkingEmail ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ fontSize: 17, fontWeight: '700', color: '#fff' }}>Susunod</Text>}
             </TouchableOpacity>
           </>}
 
@@ -249,37 +276,15 @@ export default function DriverRegisterScreen() {
             {sectionTitle('Franchise / Operator')}
             <Text style={{ fontSize: 13, fontWeight: '600', color: C, marginBottom: 6 }}>Ruta (From - To) (Kailangan)</Text>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-              <TouchableOpacity onPress={() => setShowTownPicker('from')} style={{ flex: 1, height: 52, borderRadius: 12, backgroundColor: bg, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: errors.route ? '#EF4444' : bg }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: routeFrom ? C : G }}>{routeFrom || 'From'}</Text>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Choose route origin" onPress={() => { setTownQuery(''); setShowTownPicker('from'); }} style={{ flex: 1, minWidth: 0, height: 52, borderRadius: 12, backgroundColor: bg, justifyContent: 'center', paddingHorizontal: 12, borderWidth: 1, borderColor: errors.route ? '#EF4444' : '#E8EDE9' }}>
+                <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: routeFrom ? C : G, textAlign: 'center' }}>{routeFrom || 'From'}</Text>
               </TouchableOpacity>
               <Text style={{ fontSize: 18, color: G, alignSelf: 'center' }}>→</Text>
-              <TouchableOpacity onPress={() => setShowTownPicker('to')} style={{ flex: 1, height: 52, borderRadius: 12, backgroundColor: bg, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: errors.route ? '#EF4444' : bg }}>
-                <Text style={{ fontSize: 14, fontWeight: '600', color: routeTo ? C : G }}>{routeTo || 'To'}</Text>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Choose route destination" onPress={() => { setTownQuery(''); setShowTownPicker('to'); }} style={{ flex: 1, minWidth: 0, height: 52, borderRadius: 12, backgroundColor: bg, justifyContent: 'center', paddingHorizontal: 12, borderWidth: 1, borderColor: errors.route ? '#EF4444' : '#E8EDE9' }}>
+                <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '600', color: routeTo ? C : G, textAlign: 'center' }}>{routeTo || 'To'}</Text>
               </TouchableOpacity>
             </View>
             {errors.route && <Text style={{ fontSize: 12, color: '#C0392B', marginTop: -12, marginBottom: 12, marginLeft: 4 }}>{errors.route}</Text>}
-            {showTownPicker && (
-              <View style={{ maxHeight: 200, marginBottom: 16, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#EAF0EC', overflow: 'hidden' }}>
-                <ScrollView style={{ maxHeight: 200 }}>
-                  {TOWNS.map((t) => {
-                    const sameTown = showTownPicker === 'to' && t === routeFrom || showTownPicker === 'from' && t === routeTo;
-                    return (
-                    <TouchableOpacity key={t} onPress={() => {
-                      if (sameTown) return;
-                      if (showTownPicker === 'from') { setRouteFrom(t); setErrors((e) => ({ ...e, route: undefined })); }
-                      else { setRouteTo(t); setErrors((e) => ({ ...e, route: undefined })); }
-                      setShowTownPicker(null);
-                    }}
-                      style={{ paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#EAF0EC', backgroundColor: (routeFrom === t || routeTo === t) ? B + '10' : 'transparent', opacity: sameTown ? 0.3 : 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <Text style={{ fontSize: 14, color: sameTown ? G : (routeFrom === t || routeTo === t) ? B : C }}>{t}</Text>
-                        {(routeFrom === t || routeTo === t) && <Ionicons name="checkmark" size={18} color={B} />}
-                      </View>
-                    </TouchableOpacity>
-                  )})}
-                </ScrollView>
-              </View>
-            )}
             <Input label="LTFRB Franchise No." placeholder="Franchise number" value={form.franchiseNo} onChangeText={(v) => u('franchiseNo', v)} icon="document-text-outline" />
             <Input label="CPC Number" placeholder="CPC number" value={form.cpc} onChangeText={(v) => u('cpc', v)} icon="document-outline" />
             <Input label="Operator Name" placeholder="Name ng operator" value={form.operatorName} onChangeText={(v) => u('operatorName', v)} icon="person-outline" />
@@ -293,7 +298,7 @@ export default function DriverRegisterScreen() {
             <View style={{ height: 24 }} />
             <View style={{ flexDirection: 'row', gap: 12 }}>
               {btn('Bumalik', prevStep, undefined, true)}
-              {btn('Susunod', nextStep)}
+              {btn('Susunod', () => { void nextStep(); })}
             </View>
           </>}
 
@@ -362,6 +367,52 @@ export default function DriverRegisterScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Modal visible={!!showTownPicker} transparent animationType="slide" onRequestClose={() => setShowTownPicker(null)}>
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: '#10282066' }}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Close town picker" onPress={() => setShowTownPicker(null)} style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }} />
+          <View style={{ width: '100%', maxWidth: 560, maxHeight: '82%', alignSelf: 'center', backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 10, paddingHorizontal: 20, paddingBottom: Platform.OS === 'ios' ? 30 : 18, overflow: 'hidden' }}>
+            <View style={{ width: 38, height: 4, borderRadius: 2, backgroundColor: '#D7E0DA', alignSelf: 'center', marginBottom: 18 }} />
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+              <View>
+                <Text style={{ color: C, fontSize: 19, lineHeight: 26, fontWeight: '800' }}>Pumili ng {showTownPicker === 'from' ? 'pinanggalingan' : 'destinasyon'}</Text>
+                <Text style={{ color: G, fontSize: 13, lineHeight: 19 }}>Piliin ang bayan para sa ruta mo</Text>
+              </View>
+              <TouchableOpacity accessibilityRole="button" accessibilityLabel="Close town picker" onPress={() => setShowTownPicker(null)} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#F3F6F4', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="close" size={21} color={C} />
+              </TouchableOpacity>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 10, paddingHorizontal: 12, height: 48, borderRadius: 12, backgroundColor: '#F5F7F5', borderWidth: 1, borderColor: '#E5EBE7' }}>
+              <Ionicons name="search" size={18} color={G} />
+              <TextInput value={townQuery} onChangeText={setTownQuery} placeholder="Hanapin ang bayan" placeholderTextColor={G} returnKeyType="search" style={{ flex: 1, marginLeft: 9, color: C, fontSize: 15, paddingVertical: 0 }} />
+              {!!townQuery && <TouchableOpacity onPress={() => setTownQuery('')} accessibilityLabel="Clear search"><Ionicons name="close-circle" size={18} color={G} /></TouchableOpacity>}
+            </View>
+            <FlatList
+              data={TOWNS.filter(town => town.toLowerCase().includes(townQuery.trim().toLowerCase()))}
+              keyExtractor={town => town}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator
+              style={{ flexShrink: 1 }}
+              ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: '#EEF1EF', marginLeft: 48 }} />}
+              ListEmptyComponent={<Text style={{ paddingVertical: 24, textAlign: 'center', color: G }}>Walang nahanap na bayan.</Text>}
+              renderItem={({ item: town }) => {
+                const sameTown = (showTownPicker === 'to' && town === routeFrom) || (showTownPicker === 'from' && town === routeTo);
+                const selected = town === routeFrom || town === routeTo;
+                return <TouchableOpacity disabled={sameTown} onPress={() => {
+                  if (showTownPicker === 'from') setRouteFrom(town); else setRouteTo(town);
+                  setErrors(errors => ({ ...errors, route: undefined }));
+                  setShowTownPicker(null);
+                }} style={{ minHeight: 54, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', opacity: sameTown ? 0.4 : 1 }}>
+                  <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: selected ? '#E4F3EA' : '#F3F6F4', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                    <Ionicons name={selected ? 'checkmark' : 'location-outline'} size={17} color={selected ? B : G} />
+                  </View>
+                  <Text style={{ flex: 1, fontSize: 15, fontWeight: selected ? '700' : '500', color: sameTown ? G : selected ? B : C }}>{town}</Text>
+                  {sameTown && <Text style={{ color: G, fontSize: 12 }}>Napili na</Text>}
+                </TouchableOpacity>;
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
       {transitioning && <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center' }}><DotLoader color={B} size={12} /></View>}
     </SafeAreaView>
   );

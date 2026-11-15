@@ -91,7 +91,7 @@ export function Input({
           </TouchableOpacity>
         )}
       </View>
-      {error && (
+      {!!error && (
         <Text style={{ fontSize: moderateScale(12), marginTop: verticalScale(4), marginLeft: scale(4), color: Colors.error }}>
           {error}
         </Text>
