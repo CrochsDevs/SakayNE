@@ -4,9 +4,10 @@ export type RideStatus = 'pending' | 'accepted' | 'arrived' | 'ongoing' | 'compl
 export interface RideBooking {
  id: string; routeId: string; driverId: string; driverName: string; driverPhone?: string; passengerName?: string;
  vehicle: string; type: 'jeep' | 'bus'; fromId: string; toId: string; fromName: string; toName: string;
- fare: number; unitFare: number; minutes: number; seats: number; boardingCode: string;
+ fare: number; unitFare: number; minutes: number; seats: number;
  paymentMethod: 'cash'; paymentStatus: 'unpaid' | 'paid'; status: RideStatus; progress: number; rating?: number; cancellationReason?: string;
  driverLocation?: { latitude: number; longitude: number; updatedAt: string } | null; createdAt: number;
+ partyDistanceMeters?: number | null;
  occupancyStatus?: 'waiting' | 'onboard' | 'alighted'; geoTrackingEnabled?: boolean;
  boardingSource?: 'code' | 'geolocation'; alightingSource?: 'geolocation'; seatsReleasedAt?: string;
  geoDetection?: { state: string; distanceMeters?: number; minimumSeparationMeters?: number; samples?: number; updatedAt: string };
@@ -19,8 +20,8 @@ export async function getRides(): Promise<RideBooking[]> { return (await apiRequ
 export async function bookRide(input: { routeId: string; driverId: string; fromId: string; toId: string; seats: number; requestId: string; pickupLocation?: PickupLocation }): Promise<RideBooking> {
  return (await apiRequest('/rides', { method: 'POST', body: JSON.stringify(input) })).ride;
 }
-export async function changeRideStatus(id: string, status: RideStatus, boardingCode?: string): Promise<RideBooking> {
- return (await apiRequest('/rides/' + id + '/status', { method: 'PATCH', body: JSON.stringify({ status, boardingCode }) })).ride;
+export async function changeRideStatus(id: string, status: RideStatus): Promise<RideBooking> {
+ return (await apiRequest('/rides/' + id + '/status', { method: 'PATCH', body: JSON.stringify({ status }) })).ride;
 }
 export async function rateRide(id: string, rating: number) { return apiRequest('/rides/' + id + '/rating', { method: 'POST', body: JSON.stringify({ rating }) }); }
 export const setSeatDetection = (id: string, enabled: boolean) => apiRequest('/rides/' + id + '/geolocation', { method: 'PUT', body: JSON.stringify({ enabled }) });

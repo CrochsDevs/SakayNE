@@ -20,10 +20,10 @@ export default function DriverTripsScreen() {
   const [busy, setBusy] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedRideId, setSelectedRideId] = useState('');
-  const updateStatus = async (id: string, status: RideStatus, code?: string) => {
+  const updateStatus = async (id: string, status: RideStatus) => {
     if (busy) return;
     setBusy(true);
-    try { await changeRideStatus(id, status, code); await refresh(); }
+    try { await changeRideStatus(id, status); await refresh(); }
     catch (error) { showError(error instanceof Error ? error.message : translate('Request failed')); }
     finally { setBusy(false); }
   };
@@ -36,7 +36,7 @@ export default function DriverTripsScreen() {
     <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void refreshTrips(); }} tintColor={colors.primaryLight} />}>
       <View style={styles.header}><Text accessibilityRole="header" style={[styles.title, { color: colors.text }]}>{translate('Trips')}</Text><View style={[styles.underline, { backgroundColor: brand.sunshine }]} /><Text style={[styles.description, { color: colors.textSecondary }]}>{translate('Track your active and past trips.')}</Text></View>
       {!!error && <View style={[styles.error, { backgroundColor: colors.coralSurface }]}><Ionicons name="cloud-offline-outline" size={22} color={colors.error} /><Text style={{ color: colors.error, flex: 1, fontSize: 13, lineHeight: 20 }}>{error}</Text><TouchableOpacity accessibilityRole="button" accessibilityLabel={translate('Retry')} onPress={refresh} style={styles.retry}><Text style={{ color: colors.error, fontWeight: '700' }}>{translate('Retry')}</Text></TouchableOpacity></View>}
-      <DriverBookings showHeading={false} rides={data?.rides || []} loading={loading} error={error} busy={busy} online={!!data?.driver.isAvailable} selectedRideId={selectedRideId} onSelect={setSelectedRideId} onStatusChange={(id, status, code) => { void updateStatus(id, status, code); }} />
+      <DriverBookings showHeading={false} rides={data?.rides || []} loading={loading} error={error} busy={busy} online={!!data?.driver.isAvailable} selectedRideId={selectedRideId} onSelect={setSelectedRideId} onStatusChange={(id, status) => { void updateStatus(id, status); }} />
     </ScrollView>
   </SafeAreaView>;
 }

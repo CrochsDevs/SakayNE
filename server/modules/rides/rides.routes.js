@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { randomBytes } from 'node:crypto';
 import { ObjectId } from 'mongodb';
 import { getDB, transaction } from '../../config/db.js';
 import { asyncRoute, requireValue } from '../../shared/errors.js';
@@ -19,14 +18,27 @@ router.use(asyncRoute(async (req, res, next) => {
 }));
 const id = value => { requireValue(ObjectId.isValid(value), 'Invalid booking ID'); return new ObjectId(value); };
 const owned = (req) => req.auth.role === 'driver' ? { driverEmail: req.auth.email } : { passengerEmail: req.auth.email };
+function partyDistanceMeters(ride, driver) {
+  const passenger = ride.passengerLocation, vehicle = driver?.location;
+  if (!passenger || !vehicle) return null;
+  const now = Date.now();
+  const passengerAt = Date.parse(passenger.capturedAt), driverAt = Date.parse(vehicle.capturedAt || vehicle.updatedAt);
+  if (![passengerAt, driverAt].every(Number.isFinite) || now - passengerAt > 30000 || now - driverAt > 30000) return null;
+  const radians = value => value * Math.PI / 180;
+  const deltaLat = radians(vehicle.latitude - passenger.latitude), deltaLng = radians(vehicle.longitude - passenger.longitude);
+  const h = Math.sin(deltaLat / 2) ** 2 + Math.cos(radians(passenger.latitude)) * Math.cos(radians(vehicle.latitude)) * Math.sin(deltaLng / 2) ** 2;
+  return Math.round(6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h))));
+}
 function serialize(ride, driver, role = 'passenger') {
   const { boardingCode, passengerEmail, driverEmail, requestId, geoEvidence, ...safe } = ride;
   return { ...safe, fromName: ride.fromName || ride.pickup || '', toName: ride.toName || ride.dropoff || '',
     type: ride.type || (ride.vehicleType === 'bus' ? 'bus' : 'jeep'),
     vehicle: ride.vehicle || driver?.plateNo || '', seats: ride.seats ?? 1,
     unitFare: ride.unitFare ?? ride.fare, minutes: ride.minutes ?? 0,
-    ...(role === 'passenger' ? { boardingCode } : {}), id: ride._id.toString(), createdAt: new Date(ride.createdAt).getTime(),
-    driverLocation: activeStatuses.includes(ride.status) ? driver?.location || null : null, driverPhone: driver?.phone || '', progress: ride.status === 'completed' ? 1 : 0 };
+    id: ride._id.toString(), createdAt: new Date(ride.createdAt).getTime(),
+    driverLocation: activeStatuses.includes(ride.status) ? driver?.location || null : null,
+    partyDistanceMeters: activeStatuses.includes(ride.status) ? partyDistanceMeters(ride, driver) : null,
+    driverPhone: driver?.phone || '', progress: ride.status === 'completed' ? 1 : 0 };
 }
 // Legacy history points to a driver by email, rather than the current ObjectId.
 async function findRideDriver(db, ride, options = {}) {
@@ -85,7 +97,10 @@ router.post('/', requireRole('passenger'), asyncRoute(async (req, res) => {
     const capacity = driver.capacity || (quote.route.type === 'bus' ? 45 : 16);
     const reserved = driver.reservedSeats || 0;
     requireValue(reserved + seats <= capacity, 'Not enough seats available', 409);
-    const seatUpdate = await db.collection('drivers').updateOne({ _id: driver._id }, { $inc: { reservedSeats: seats } }, options);
+    const seatUpdate = await db.collection('drivers').updateOne({ _id: driver._id, isAvailable: true,
+      onlineUntil: { $gt: new Date() }, routeId,
+      $expr: { $lte: [{ $add: [{ $ifNull: ['$reservedSeats', 0] }, seats] }, capacity] } },
+    { $inc: { reservedSeats: seats } }, options);
     requireValue(seatUpdate.matchedCount === 1, 'Driver is unavailable', 409);
     ride = { _id: new ObjectId(), requestId, passengerEmail: req.auth.email, passengerId: req.auth.userId,
       passengerName: (await db.collection('users').findOne({ email: req.auth.email }, options)).fullName,
@@ -93,7 +108,7 @@ router.post('/', requireRole('passenger'), asyncRoute(async (req, res) => {
       routeId, type: quote.route.type, fromId, toId, fromName: quote.fromName, toName: quote.toName,
       ...(pickupLocation ? { pickupLocation } : {}),
       fare: quote.fare, unitFare: quote.unitFare, minutes: quote.minutes, seats, paymentMethod: 'cash', paymentStatus: 'unpaid', occupancyStatus: 'waiting', geoTrackingEnabled: false,
-      boardingCode: randomBytes(3).toString('hex').toUpperCase(), status: 'pending', expiresAt: new Date(Date.now() + 5 * 60000), createdAt: new Date().toISOString() };
+      status: 'pending', expiresAt: new Date(Date.now() + 5 * 60000), createdAt: new Date().toISOString() };
     await db.collection('rides').insertOne(ride, options);
     await notify(db, session, driver.email, ride, `${ride.passengerName} requested ${seats} seat(s): ${ride.fromName} to ${ride.toName}`);
   });
@@ -111,16 +126,16 @@ router.patch('/:id/status', asyncRoute(async (req, res) => {
     const options = { session };
     const ride = await db.collection('rides').findOne({ _id: id(req.params.id), ...owned(req) }, options);
     requireValue(ride, 'Booking not found', 404);
-    const { status, boardingCode } = req.body;
+    const { status } = req.body;
     if (status === ride.status) { updated = ride; return; }
     requireValue(canTransition(req.auth.role, ride.status, status), 'That booking status change is not allowed', 409);
     if (req.auth.role === 'driver') {
       const driver = await db.collection('drivers').findOne({ _id: id(ride.driverId) }, options);
       requireValue(driver?.verified && driver.approvalStatus === 'approved', 'Driver approval required', 403);
     }
-    if (status === 'ongoing') requireValue(typeof boardingCode === 'string' && boardingCode.toUpperCase() === ride.boardingCode, 'Enter the passenger boarding code');
     const changes = { status, updatedAt: new Date().toISOString() };
-    if (status === 'ongoing') Object.assign(changes, { startedAt: changes.updatedAt, boardedAt: changes.updatedAt, occupancyStatus: 'onboard', boardingSource: 'code', geoEvidence: null });
+    if (status === 'accepted') Object.assign(changes, { geoTrackingEnabled: true, passengerLocation: null, geoEvidence: null,
+      geoDetection: { state: 'waiting_for_fresh_gps', updatedAt: changes.updatedAt } });
     if (status === 'completed') { changes.completedAt = changes.updatedAt; changes.paymentStatus = 'paid'; changes.occupancyStatus = 'alighted'; changes.alightedAt = ride.alightedAt || changes.updatedAt; changes.geoTrackingEnabled = false; changes.geoEvidence = null; }
     if (status === 'cancelled') { changes.cancelledBy = req.auth.role; changes.cancellationReason = String(req.body.reason || 'Cancelled').slice(0, 250); }
     if (['completed', 'cancelled'].includes(status)) {
@@ -128,7 +143,11 @@ router.patch('/:id/status', asyncRoute(async (req, res) => {
       changes.geoEvidence = null;
       changes.passengerLocation = null;
       if (hasSeatHold(ride)) changes.seatsReleasedAt = changes.updatedAt;
-      await db.collection('drivers').updateOne({ _id: id(ride.driverId) }, { $inc: { ...(hasSeatHold(ride) ? { reservedSeats: -ride.seats } : {}), ...(status === 'completed' ? { totalTrips: 1, totalEarnings: ride.fare } : {}) } }, options);
+      if (hasSeatHold(ride)) {
+        const released = await db.collection('drivers').updateOne({ _id: id(ride.driverId), reservedSeats: { $gte: ride.seats } },
+          { $inc: { reservedSeats: -ride.seats, ...(status === 'completed' ? { totalTrips: 1, totalEarnings: ride.fare } : {}) } }, options);
+        requireValue(released.matchedCount === 1, 'Seat reservations changed. Please retry', 409);
+      }
     }
     await db.collection('rides').updateOne({ _id: ride._id, status: ride.status }, { $set: changes }, options);
     updated = { ...ride, ...changes };
@@ -137,7 +156,7 @@ router.patch('/:id/status', asyncRoute(async (req, res) => {
   res.json({ ride: serialize(updated, null, req.auth.role) });
 }));
 router.put('/:id/geolocation', requireRole('passenger'), asyncRoute(async (req, res) => {
-  requireValue(typeof req.body.enabled === 'boolean', 'Specify whether GPS seat detection is enabled');
+  requireValue(req.body.enabled === true, 'Automatic seat detection is enabled by the booking');
   await transaction(async (db, session) => {
     const options = { session };
     const ride = await db.collection('rides').findOne({ _id: id(req.params.id), passengerEmail: req.auth.email }, options);

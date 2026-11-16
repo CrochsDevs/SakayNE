@@ -17,7 +17,11 @@ async function sweepReservations() {
     if (!ride) return;
     const now = new Date().toISOString();
     await db.collection('rides').updateOne({ _id: ride._id }, { $set: { status: 'cancelled', cancellationReason: 'Driver confirmation timed out', cancelledBy: 'system', updatedAt: now, seatsReleasedAt: now, geoTrackingEnabled: false, passengerLocation: null, geoEvidence: null } }, options);
-    if (!ride.seatsReleasedAt) await db.collection('drivers').updateOne({ _id: new ObjectId(ride.driverId) }, { $inc: { reservedSeats: -ride.seats } }, options);
+    if (!ride.seatsReleasedAt) {
+      const released = await db.collection('drivers').updateOne({ _id: new ObjectId(ride.driverId), reservedSeats: { $gte: ride.seats } },
+        { $inc: { reservedSeats: -ride.seats } }, options);
+      if (released.matchedCount !== 1) throw new Error('Seat reservations changed while expiring a booking');
+    }
     for (const email of [ride.passengerEmail, ride.driverEmail]) {
       const preferences = await db.collection('notification_settings').findOne({ email }, options);
       if (preferences?.push !== false) await db.collection('notifications').insertOne({ email, type: 'booking', title: 'Booking update', message: 'Driver confirmation timed out. The reservation has been released.', rideId: ride._id.toString(), read: false, createdAt: now }, options);

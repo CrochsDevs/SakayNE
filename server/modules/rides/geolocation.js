@@ -2,7 +2,7 @@ import { ObjectId } from 'mongodb';
 import { requireValue } from '../../shared/errors.js';
 import { validLocation } from '../../shared/transit.js';
 
-export const GEO_RULES = Object.freeze({ boardingMeters: 8, alightingMeters: 15, maxAccuracyMeters: 5,
+export const GEO_RULES = Object.freeze({ boardingMeters: 8, alightingMeters: 20, maxAccuracyMeters: 15,
   maxAgeMs: 20000, maxPairSkewMs: 10000, minSampleGapMs: 4000, evidenceWindowMs: 15000,
   requiredSamples: 3, confirmationMs: 10000 });
 
@@ -50,7 +50,8 @@ export function evaluateProximity(ride, driverPosition, now = Date.now()) {
   if (Math.abs(passengerAt - driverAt) > GEO_RULES.maxPairSkewMs) return result('waiting_for_fresh_gps');
   const distance = distanceMeters(passenger, driverPosition);
   const minimumSeparation = Math.max(0, distance - passenger.accuracy - driverPosition.accuracy);
-  const details = { distanceMeters: Math.round(distance * 10) / 10, minimumSeparationMeters: Math.round(minimumSeparation * 10) / 10 };
+  const details = { distanceMeters: Math.round(distance * 10) / 10,
+    minimumSeparationMeters: Math.round(minimumSeparation * 10) / 10 };
   const kind = isOnboard(ride) ? 'alight' : 'board';
   const candidate = kind === 'board' ? distance <= GEO_RULES.boardingMeters : minimumSeparation >= GEO_RULES.alightingMeters;
   if (!candidate) return result(kind === 'board' ? 'waiting_for_proximity' : 'onboard', details);
@@ -73,15 +74,25 @@ export async function detectOccupancy(db, session, ride, driver) {
   const changes = { geoDetection: evaluation.detection, geoEvidence: evaluation.evidence };
   if (evaluation.event === 'board') Object.assign(changes, { status: 'ongoing', occupancyStatus: 'onboard', boardedAt: now, startedAt: now, boardingSource: 'geolocation' });
   if (evaluation.event === 'alight') {
-    Object.assign(changes, { occupancyStatus: 'alighted', alightedAt: now, seatsReleasedAt: now, alightingSource: 'geolocation', geoTrackingEnabled: false, passengerLocation: null });
-    // Same transaction as the ride update: a retry cannot release these seats twice.
-    const result = await db.collection('drivers').updateOne({ _id: new ObjectId(ride.driverId), reservedSeats: { $gte: ride.seats } }, { $inc: { reservedSeats: -ride.seats } }, options);
-    requireValue(result.matchedCount, 'Seat reservations changed. Please retry', 409);
+    Object.assign(changes, { status: 'completed', completedAt: now, occupancyStatus: 'alighted', alightedAt: now,
+      seatsReleasedAt: now, alightingSource: 'geolocation', geoTrackingEnabled: false, passengerLocation: null });
   }
-  await db.collection('rides').updateOne({ _id: ride._id }, { $set: changes }, options);
+  const rideFilter = evaluation.event === 'board'
+    ? { _id: ride._id, status: { $in: ['accepted', 'arrived'] }, seatsReleasedAt: { $exists: false } }
+    : evaluation.event === 'alight'
+      ? { _id: ride._id, status: 'ongoing', occupancyStatus: 'onboard', seatsReleasedAt: { $exists: false } }
+      : { _id: ride._id };
+  const savedRide = await db.collection('rides').updateOne(rideFilter, { $set: changes }, options);
+  if (evaluation.event) requireValue(savedRide.matchedCount === 1, 'Booking changed while GPS was being verified. Please retry', 409);
+  if (evaluation.event === 'alight') {
+    // Ride completion and seat restoration commit together; retries cannot release twice.
+    const released = await db.collection('drivers').updateOne({ _id: new ObjectId(ride.driverId), reservedSeats: { $gte: ride.seats } },
+      { $inc: { reservedSeats: -ride.seats, totalTrips: 1, totalEarnings: ride.fare } }, options);
+    requireValue(released.matchedCount === 1, 'Seat reservations changed. Please retry', 409);
+  }
   if (evaluation.event) {
     const message = evaluation.event === 'board' ? `GPS detected boarding: ${ride.seats} occupied seat(s).`
-      : `GPS detected alighting: ${ride.seats} seat(s) released. Cash payment still needs driver confirmation.`;
+      : `GPS detected alighting: booking completed and ${ride.seats} seat(s) released. Cash payment remains pending.`;
     for (const email of [ride.passengerEmail, ride.driverEmail]) {
       const preferences = await db.collection('notification_settings').findOne({ email }, options);
       if (preferences?.push !== false) await db.collection('notifications').insertOne({ email, type: 'booking', title: 'Seat occupancy update',

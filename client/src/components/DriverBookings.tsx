@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import Avatar from './ui/Avatar';
@@ -13,9 +13,6 @@ import { isActiveRide, type RideBooking, type RideStatus } from '@/src/ride/ride
 const filters = ['Active', 'Completed', 'Cancelled'] as const;
 const nextAction: Partial<Record<RideStatus, { status: RideStatus; title: string }>> = {
   pending: { status: 'accepted', title: 'Accept booking' },
-  accepted: { status: 'arrived', title: 'Arrived at pickup' },
-  arrived: { status: 'ongoing', title: 'Verify code & board passenger' },
-  ongoing: { status: 'completed', title: 'Complete trip' },
 };
 
 type Props = {
@@ -27,7 +24,7 @@ type Props = {
   online: boolean;
   selectedRideId?: string;
   onSelect: (id: string) => void;
-  onStatusChange: (id: string, status: RideStatus, code?: string) => void;
+  onStatusChange: (id: string, status: RideStatus) => void;
 };
 
 export default function DriverBookings({ showHeading = true, rides, busy, loading, error, online, selectedRideId, onSelect, onStatusChange }: Props) {
@@ -35,7 +32,6 @@ export default function DriverBookings({ showHeading = true, rides, busy, loadin
   const translate = useInterfaceText();
   const [filter, setFilter] = useState<typeof filters[number]>('Active');
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
-  const [codes, setCodes] = useState<Record<string, string>>({});
   const groups = {
     Active: rides.filter(isActiveRide),
     Completed: rides.filter(ride => ride.status === 'completed'),
@@ -91,13 +87,13 @@ export default function DriverBookings({ showHeading = true, rides, busy, loadin
           {ride.pickupLocation && <PickupAccuracyNotice accuracy={ride.pickupLocation.accuracy} forDriver />}
           <View style={[styles.vehicleRow, { borderColor: colors.borderLight }]}><Text style={[styles.caption, { color: colors.textSecondary }]}>{translate('Vehicle')}</Text><Text style={{ color: colors.text, fontSize: 12, fontWeight: '600', flexShrink: 1, textAlign: 'right' }}>{translate(ride.type === 'bus' ? 'Bus' : 'Jeepney')} · {ride.vehicle}</Text></View>
           {active ? <>
-            <Text style={[styles.notice, { backgroundColor: colors.backgroundAlt, color: colors.textSecondary }]}>{translate(ride.occupancyStatus === 'alighted' ? 'Passenger alighted · seats released' : ride.status === 'ongoing' ? ride.boardingSource === 'geolocation' ? 'Passenger on board · detected by GPS' : 'Passenger on board' : 'Seats reserved · waiting to board')}</Text>
+            <View accessibilityLiveRegion="polite" style={[styles.notice, { backgroundColor: colors.mintSurface, flexDirection: 'row', alignItems: 'center', gap: 8 }]}><Ionicons name="navigate-outline" size={17} color={colors.primaryLight} /><Text style={{ color: colors.textSecondary, fontSize: 12, lineHeight: 19, flex: 1 }}>{ride.partyDistanceMeters != null ? translate('You are about {{distance}} m apart (GPS estimate)', { distance: ride.partyDistanceMeters }) : translate('Waiting for fresh GPS from both phones to show distance.')}</Text></View>
+            <Text style={[styles.notice, { backgroundColor: colors.backgroundAlt, color: colors.textSecondary }]}>{translate(ride.occupancyStatus === 'alighted' ? 'Passenger alighted · seats released' : ride.status === 'ongoing' ? 'Passenger on board · GPS will complete the trip after drop-off.' : ride.status === 'arrived' ? 'Waiting for GPS boarding confirmation.' : ride.status === 'accepted' ? 'Waiting for GPS boarding confirmation.' : 'Seats reserved · waiting to board')}</Text>
             <View style={styles.links}>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel={translate('Passenger trip details')} onPress={() => { onSelect(ride.id); router.push({ pathname: '/driver-trip', params: { rideId: ride.id } }); }} style={[styles.link, { backgroundColor: colors.backgroundAlt }]}><Ionicons name="map-outline" size={18} color={colors.primaryLight} /><Text style={[styles.linkText, { color: colors.text }]}>{translate('Trip details')}</Text></TouchableOpacity>
               <TouchableOpacity accessibilityRole="button" accessibilityLabel={translate('Message passenger')} onPress={() => router.push({ pathname: '/ride-chat', params: { rideId: ride.id } })} style={[styles.link, { backgroundColor: colors.mintSurface }]}><Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.primaryLight} /><Text style={[styles.linkText, { color: colors.text }]}>{translate('Message')}</Text></TouchableOpacity>
             </View>
-            {ride.status === 'arrived' && <TextInput accessibilityLabel={translate('Passenger boarding code')} placeholder={translate('Passenger boarding code')} placeholderTextColor={colors.textTertiary} value={codes[ride.id] || ''} onChangeText={code => setCodes(previous => ({ ...previous, [ride.id]: code }))} editable={!busy} autoCapitalize="characters" style={[styles.input, { backgroundColor: colors.backgroundAlt, color: colors.text, borderColor: colors.border }]} />}
-            {action && <Action disabled={busy} title={translate(action.title)} onPress={() => { onSelect(ride.id); onStatusChange(ride.id, action.status, codes[ride.id]); }} />}
+            {action && <Action disabled={busy} title={translate(action.title)} onPress={() => { onSelect(ride.id); onStatusChange(ride.id, action.status); }} />}
             {ride.status !== 'ongoing' && <Action disabled={busy} secondary title={translate(ride.status === 'pending' ? 'Decline booking' : 'Cancel booking')} onPress={() => onStatusChange(ride.id, 'cancelled')} />}
           </> : <>
             {ride.status === 'completed' && ride.rating != null && <View style={styles.vehicleRow}><Text style={[styles.caption, { color: colors.textSecondary }]}>{translate('Trip rating')}</Text><View style={styles.rating}><Ionicons name="star" size={14} color={colors.onAccent} /><Text style={{ color: colors.text, fontSize: 12 }}>{ride.rating.toFixed(1)}</Text></View></View>}

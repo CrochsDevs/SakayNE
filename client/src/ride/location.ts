@@ -50,37 +50,35 @@ export async function getPickupPosition(): Promise<PickupLocation> {
 export async function watchForegroundPosition(onPosition: (latitude: number, longitude: number, metadata: PositionMetadata) => void, onError: (message: string) => void): Promise<PositionSubscription> {
   if (Platform.OS === 'web') {
     if (!navigator.geolocation) throw new Error('This browser does not support GPS location');
-    let active = true, busy = false;
-    const sample = () => {
-      if (!active || busy) return;
-      busy = true;
-      navigator.geolocation.getCurrentPosition(position => {
-        busy = false;
-        if (active) onPosition(position.coords.latitude, position.coords.longitude, { accuracy: position.coords.accuracy, capturedAt: new Date(position.timestamp).toISOString() });
-      }, error => {
-        busy = false;
-        if (active) onError(error.code === 1 ? 'Allow location access to show your location on the map.' : 'GPS unavailable. Check your location settings.');
-      }, { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 });
-    };
-    sample(); const timer = setInterval(sample, 5000);
-    return { remove: () => { active = false; clearInterval(timer); } };
+    let active = true;
+    const watchId = navigator.geolocation.watchPosition(position => {
+      if (!active) return;
+      const { latitude, longitude, accuracy } = position.coords;
+      if (!Number.isFinite(latitude) || Math.abs(latitude) > 90 || !Number.isFinite(longitude) || Math.abs(longitude) > 180) return;
+      onPosition(latitude, longitude, { accuracy: Number.isFinite(accuracy) && accuracy >= 0 ? accuracy : null, capturedAt: new Date(position.timestamp).toISOString() });
+    }, error => {
+      if (active) onError(error.code === 1 ? 'Allow location access to show your location on the map.' : 'GPS unavailable. Check your location settings.');
+    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+    return { remove: () => { active = false; navigator.geolocation.clearWatch(watchId); } };
   }
   const permission = await Location.requestForegroundPermissionsAsync();
   if (!permission.granted) throw new Error('Allow location access to show your location on the map.');
   if (!await Location.hasServicesEnabledAsync()) throw new Error('Turn on your device location services.');
-  let active = true, busy = false;
-  const sample = async () => {
-    if (busy || !active) return;
-    busy = true;
-    try {
-      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-      if (active) onPosition(position.coords.latitude, position.coords.longitude, { accuracy: position.coords.accuracy, capturedAt: new Date(position.timestamp).toISOString() });
-    } catch { if (active) onError('GPS unavailable. Check your location settings.'); }
-    finally { busy = false; }
-  };
-  // Foreground samples avoid the SDK 54 legacy event-emitter cleanup issue.
-  void sample(); const timer = setInterval(sample, 5000);
-  return { remove: () => { active = false; clearInterval(timer); } };
+  let active = true;
+  const subscription = await Location.watchPositionAsync({
+    // Navigation accuracy requests the best continuous fix available, which
+    // matters when the server compares two phones for automatic boarding.
+    accuracy: Location.Accuracy.BestForNavigation,
+    timeInterval: 2000,
+    mayShowUserSettingsDialog: true,
+  }, position => {
+    if (!active) return;
+    const { latitude, longitude, accuracy } = position.coords;
+    if (!Number.isFinite(latitude) || Math.abs(latitude) > 90 || !Number.isFinite(longitude) || Math.abs(longitude) > 180) return;
+    onPosition(latitude, longitude, { accuracy: Number.isFinite(accuracy) && accuracy >= 0 ? accuracy : null, capturedAt: new Date(position.timestamp).toISOString() });
+  }, message => { if (active) onError(message || 'GPS unavailable. Check your location settings.'); });
+  if (!active) subscription.remove();
+  return { remove: () => { active = false; subscription.remove(); } };
 }
 
 export const watchDriverPosition = watchForegroundPosition;

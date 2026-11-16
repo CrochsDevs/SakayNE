@@ -23,11 +23,11 @@ function renderOtpEmail({ otp, title, description, label }) {
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">${baseStyle}</head>
 <body style="margin:0;padding:32px 14px;background:#F3F6F4;color:#153B32;font-family:Arial,Helvetica,sans-serif">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td align="center">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:520px"><tr><td align="center" style="padding:2px 20px 18px">
+      <span style="display:inline-block;color:#167047;font-size:25px;line-height:31px;font-weight:800;letter-spacing:2px">SAKAY</span>
+      <div style="margin-top:3px;color:#6F8177;font-size:10px;line-height:15px;letter-spacing:1.5px">YOUR RIDE, MADE EASIER</div>
+    </td></tr></table>
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:520px;background:#FFFFFF;border:1px solid #E3EAE6;border-radius:16px;overflow:hidden">
-      <tr><td align="center" style="padding:25px 24px;background:#102820;border-bottom:4px solid #40A879">
-        <span style="display:inline-block;color:#FFFFFF;font-size:24px;line-height:30px;font-weight:800;letter-spacing:2px">SAKAY</span>
-        <div style="margin-top:4px;color:#B9D5C8;font-size:11px;line-height:16px;letter-spacing:1.5px">YOUR RIDE, MADE EASIER</div>
-      </td></tr>
       <tr><td align="center" style="padding:34px 28px 36px">
         <h1 style="margin:0 0 10px;color:#153B32;font-size:25px;line-height:32px;font-weight:700">${title}</h1>
         <p style="margin:0 0 26px;color:#64746D;font-size:15px;line-height:23px">${description}</p>

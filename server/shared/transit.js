@@ -21,7 +21,7 @@ export function tripQuote(routeId, fromId, toId, seats = 1) {
 export function canTransition(role, from, to) {
   if (role === 'passenger') return ['pending', 'accepted', 'arrived'].includes(from) && to === 'cancelled';
   if (role !== 'driver') return false;
-  return ({ pending: ['accepted', 'cancelled'], accepted: ['arrived', 'cancelled'], arrived: ['ongoing', 'cancelled'], ongoing: ['completed'] })[from]?.includes(to) || false;
+  return ({ pending: ['accepted', 'cancelled'], accepted: ['cancelled'], arrived: ['cancelled'] })[from]?.includes(to) || false;
 }
 export function validLocation(location) {
   return location && Number.isFinite(location.latitude) && Math.abs(location.latitude) <= 90

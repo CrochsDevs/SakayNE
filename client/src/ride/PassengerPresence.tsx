@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { usePathname } from 'expo-router';
 import { getAuth } from '@/src/auth/auth.store';
-import { getActiveRide, publishPassengerLocation } from './ride.store';
+import { getActiveRide, publishPassengerLocation, setSeatDetection } from './ride.store';
 import { watchDriverPosition, PositionSubscription } from './location';
 import { useAppForeground } from './useAppForeground';
 
@@ -25,6 +25,10 @@ export default function PassengerPresence() {
         if (!token || user?.role !== 'passenger') { stop(); if (!disposed) setMessage(''); return; }
         const ride = await getActiveRide();
         if (disposed) return;
+        if (ride && ['accepted', 'arrived', 'ongoing'].includes(ride.status) && !ride.geoTrackingEnabled) {
+          await setSeatDetection(ride.id, true);
+          return;
+        }
         if (!ride?.geoTrackingEnabled || ride.occupancyStatus === 'alighted') { stop(); if (!disposed) setMessage(''); return; }
         if (rideId !== ride.id) stop();
         if (!subscription && !disposed) {
